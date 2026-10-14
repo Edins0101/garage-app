@@ -37,7 +37,10 @@
 - [x] **Backend** (`D:\Projects\garaje-backend`): FastAPI + Postgres 18 en Render, todos los endpoints de [API.md](API.md), permisos, JWT, 7 tests en verde y migración aplicada
 - [x] API desplegada en Render: https://garage-back-me4r.onrender.com (`/health`, `/docs`)
 - [x] App conectada a producción (`USE_FAKES=false`): login simple con nombre y correo, sesión guardada, cerrar sesión y cierre automático ante un 401
-- [ ] Login con Google en la app y luego `ALLOW_DEV_LOGIN=false` en Render (**hoy cualquiera puede entrar con cualquier correo**)
+- [x] Crear cuenta e iniciar sesión con correo y contraseña (scrypt), en el backend y en la app
+- [ ] Poner `ALLOW_DEV_LOGIN=false` en Render: la app ya no usa `/auth/dev`
+- [ ] (Opcional) Login con Google
+- [ ] Recuperar contraseña olvidada (requiere enviar correos; por ahora no existe)
 - [ ] Configurar OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
 - [ ] Rotar la contraseña de la base (se compartió en un chat)
 - [ ] Ver cuándo vence la base gratis de Render (30 días) y migrar a Neon antes de esa fecha
@@ -53,3 +56,4 @@
 - Arreglos de UI tras probar en el emulador: íconos claros en las barras del sistema; `Scaffold` sin insets automáticos; `ScrollingSheetLayout` para que la hoja blanca llegue al borde inferior; franja bajo la barra de estado; el filtro "Compartidas" pasó a llamarse "Grupo" porque no cabía.
 - Se creó el backend en FastAPI y se conectó a Postgres 18 en Render (Oregon). Se aplicó la migración inicial y se probó crear lista y elemento contra la base real. El esquema y las reglas de permisos quedaron en API.md.
 - Se desplegó en Render (`garage-back-me4r`) y se conectó la app. Probado en el emulador: login, marcar un día y crear una lista quedaron guardados en Postgres. Los datos de prueba se borraron después.
+- Se agregó registro e inicio de sesión con contraseña. Probado en el emulador contra producción: crear cuenta, cerrar sesión, contraseña incorrecta y entrar de nuevo. Bug corregido: el ícono de mostrar contraseña robaba el foco al tocar "Siguiente" en el teclado.

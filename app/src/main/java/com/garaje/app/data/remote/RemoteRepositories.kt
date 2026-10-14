@@ -43,7 +43,8 @@ private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 
 private inline fun <reified T> ApiClient.body(value: T): String = json.encodeToString(serializer<T>(), value)
 
-@Serializable private data class DevLoginBody(val email: String, val name: String)
+@Serializable private data class RegisterBody(val name: String, val email: String, val password: String)
+@Serializable private data class LoginBody(val email: String, val password: String)
 @Serializable private data class GoogleLoginBody(val idToken: String)
 
 class RemoteAuthRepository(
@@ -52,13 +53,16 @@ class RemoteAuthRepository(
 ) : AuthRepository {
     override val session: StateFlow<Session?> = sessions.session
 
-    override suspend fun loginDev(email: String, name: String): User =
-        login("/auth/dev", api.body(DevLoginBody(email.trim(), name.trim())))
+    override suspend fun register(name: String, email: String, password: String): User =
+        start("/auth/register", api.body(RegisterBody(name.trim(), email.trim(), password)))
+
+    override suspend fun login(email: String, password: String): User =
+        start("/auth/login", api.body(LoginBody(email.trim(), password)))
 
     override suspend fun loginGoogle(idToken: String): User =
-        login("/auth/google", api.body(GoogleLoginBody(idToken)))
+        start("/auth/google", api.body(GoogleLoginBody(idToken)))
 
-    private suspend fun login(path: String, body: String): User {
+    private suspend fun start(path: String, body: String): User {
         val session = api.request("POST", path, body, Session.serializer())!!
         sessions.save(session)
         return session.user

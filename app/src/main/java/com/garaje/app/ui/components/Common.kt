@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -161,6 +162,8 @@ fun GlassField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onDone: (() -> Unit)? = null,
     singleLine: Boolean = true,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     BasicTextField(
         value = value,
@@ -170,6 +173,7 @@ fun GlassField(
         cursorBrush = SolidColor(Palette.VioletBright),
         keyboardOptions = keyboardOptions,
         keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }, onSearch = { onDone?.invoke() }),
+        visualTransformation = visualTransformation,
         modifier = modifier,
         decorationBox = { inner ->
             Row(
@@ -191,6 +195,7 @@ fun GlassField(
                     }
                     inner()
                 }
+                trailing?.invoke()
             }
         },
     )

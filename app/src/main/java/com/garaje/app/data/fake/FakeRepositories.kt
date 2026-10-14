@@ -40,9 +40,16 @@ class FakeAuthRepository(
 ) : AuthRepository {
     override val session: StateFlow<Session?> = sessions.session
 
-    override suspend fun loginDev(email: String, name: String): User {
+    override suspend fun register(name: String, email: String, password: String): User =
+        start(name.trim(), email)
+
+    // Sin backend no hay cuentas reales: cualquier correo y contraseña entran.
+    override suspend fun login(email: String, password: String): User =
+        start(email.substringBefore("@"), email)
+
+    private suspend fun start(name: String, email: String): User {
         store.simulateLatency()
-        val user = FakeSeed.currentUser.copy(name = name.trim(), email = email.trim().lowercase())
+        val user = FakeSeed.currentUser.copy(name = name, email = email.trim().lowercase())
         sessions.save(Session(token = "fake-token", user = user))
         return user
     }

@@ -27,8 +27,11 @@ interface AuthRepository {
     /** null = no hay sesión (se muestra el login). Persiste entre reinicios de la app. */
     val session: StateFlow<Session?>
 
-    /** Login simple sin Google (solo si el backend tiene ALLOW_DEV_LOGIN=true). */
-    suspend fun loginDev(email: String, name: String): User
+    /** Crea la cuenta con correo y contraseña e inicia sesión. */
+    suspend fun register(name: String, email: String, password: String): User
+
+    /** Inicia sesión con correo y contraseña. */
+    suspend fun login(email: String, password: String): User
 
     /** Login con el ID token de "Iniciar sesión con Google". */
     suspend fun loginGoogle(idToken: String): User
