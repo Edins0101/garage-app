@@ -59,5 +59,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Fotos: carga y caché de imágenes, y orientación EXIF de las fotos de cámara.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.exifinterface)
+
     testImplementation(libs.junit)
 }

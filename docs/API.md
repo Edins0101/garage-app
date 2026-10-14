@@ -66,6 +66,21 @@ Montos en dólares: se envían como texto con 2 decimales (`"5.50"`) y se devuel
   agrega los días que faltan hasta hoy con la tarifa por defecto, desde `garage_auto_filled_until`.
   Los días que el usuario quite no vuelven a aparecer.
 
+## Catálogo y fotos
+
+Ver [PLAN-FOTOS.md](PLAN-FOTOS.md). `ChecklistItem` incluye `productId` e `image: { url, key, source: 'item' | 'product' }`.
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/lists/{id}/products?q=` | — | `Product[]` del catálogo del dueño de la lista (autocompletar) |
+| POST | `/uploads` | `{ listId, contentType? }` | `{ uploadUrl, key, contentType }`: enlace firmado (10 min) para subir con PUT directo al almacenamiento |
+| PUT | `/lists/{id}/products/{productId}/image` | `{ key }` o `{ url }` (https) | `Product` |
+| DELETE | `/lists/{id}/products/{productId}/image` | — | `Product` |
+| PUT | `/lists/{id}/items/{itemId}/image` | `{ key }` | `ChecklistItem` (foto propia) |
+| DELETE | `/lists/{id}/items/{itemId}/image` | — | `ChecklistItem` |
+
+Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento configurado, las rutas de fotos responden 503.
+
 ## Listas
 
 | Método | Ruta | Body | Respuesta |

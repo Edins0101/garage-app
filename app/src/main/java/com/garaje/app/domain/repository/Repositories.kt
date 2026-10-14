@@ -7,6 +7,7 @@ import com.garaje.app.domain.model.GarageDay
 import com.garaje.app.domain.model.GarageSettings
 import com.garaje.app.domain.model.GarageSummary
 import com.garaje.app.domain.model.Payment
+import com.garaje.app.domain.model.Product
 import com.garaje.app.domain.model.MemberRole
 import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
@@ -101,6 +102,28 @@ interface ListsRepository {
     )
     suspend fun removeItem(listId: String, itemId: String)
     suspend fun clearCompleted(listId: String)
+
+    // ---- Catálogo y fotos (docs/PLAN-FOTOS.md). El catálogo es el del dueño de la lista.
+
+    /** Autocompletar: productos del catálogo que coinciden con lo escrito. */
+    suspend fun searchProducts(listId: String, query: String): List<Product>
+
+    /** Foto del producto (se ve en todas las listas): JPEG ya comprimido o URL https. */
+    suspend fun setProductImage(listId: String, productId: String, photo: PhotoInput)
+    suspend fun removeProductImage(listId: String, productId: String)
+
+    /** Foto propia de un elemento (reemplaza la del producto solo ahí). */
+    suspend fun setItemImage(listId: String, itemId: String, jpeg: ByteArray)
+    suspend fun removeItemImage(listId: String, itemId: String)
+}
+
+/** De dónde viene una foto nueva. */
+sealed interface PhotoInput {
+    /** Foto de cámara o galería, ya comprimida en JPEG. */
+    class Jpeg(val bytes: ByteArray) : PhotoInput
+
+    /** Enlace a una imagen en internet (https). */
+    data class Url(val url: String) : PhotoInput
 }
 
 interface SharingRepository {

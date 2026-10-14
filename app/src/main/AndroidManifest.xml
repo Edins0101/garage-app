@@ -30,5 +30,16 @@
                 <data android:scheme="garajeapp" android:host="join" />
             </intent-filter>
         </activity>
+
+        <!-- La cámara guarda la foto en un archivo temporal de la app (ver res/xml/file_paths.xml). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

@@ -71,6 +71,30 @@ class ApiClient(
         }
     }
 
+    /**
+     * Sube bytes a un enlace firmado del almacenamiento (Supabase). No lleva el token de la API:
+     * el permiso va dentro del propio enlace.
+     */
+    suspend fun uploadBytes(url: String, bytes: ByteArray, contentType: String) = withContext(Dispatchers.IO) {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "PUT"
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 60_000
+            connection.doOutput = true
+            connection.setFixedLengthStreamingMode(bytes.size)
+            connection.setRequestProperty("Content-Type", contentType)
+            connection.outputStream.use { it.write(bytes) }
+            if (connection.responseCode !in 200..299) {
+                throw DataException("No se pudo subir la foto (error ${connection.responseCode})", DataException.Kind.UNKNOWN)
+            }
+        } catch (e: IOException) {
+            throw DataException("No se pudo subir la foto. Revisa tu internet.", DataException.Kind.NETWORK)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun kindFor(status: Int) = when (status) {
         400, 422 -> DataException.Kind.INVALID
         401 -> DataException.Kind.UNAUTHORIZED

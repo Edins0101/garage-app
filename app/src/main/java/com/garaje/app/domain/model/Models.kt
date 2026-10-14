@@ -91,8 +91,34 @@ data class ChecklistItem(
     val done: Boolean = false,
     /** Quién lo marcó como hecho (útil en listas compartidas). */
     val doneBy: String? = null,
+    /** Producto del catálogo del dueño de la lista. */
+    val productId: String? = null,
+    /** Foto que se muestra: la propia del elemento o, si no tiene, la del producto. */
+    val image: ImageRef? = null,
     val createdAt: String,
     val updatedAt: String,
+)
+
+@Serializable
+enum class ImageSource {
+    @SerialName("item") ITEM,
+    @SerialName("product") PRODUCT,
+}
+
+/** Foto lista para mostrar. `key` es estable (sirve de clave de caché); `url` puede ser temporal. */
+@Serializable
+data class ImageRef(
+    val url: String,
+    val key: String,
+    val source: ImageSource,
+)
+
+/** Producto del catálogo ("Leche") con su foto opcional. */
+@Serializable
+data class Product(
+    val id: String,
+    val name: String,
+    val image: ImageRef? = null,
 )
 
 @Serializable

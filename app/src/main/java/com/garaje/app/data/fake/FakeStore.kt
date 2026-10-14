@@ -4,6 +4,7 @@ import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.GarageDay
 import com.garaje.app.domain.model.GarageSettings
 import com.garaje.app.domain.model.Payment
+import com.garaje.app.domain.model.Product
 import com.garaje.app.domain.model.ShareInvite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,6 +27,8 @@ data class FakeDb(
     val autoFilledUntil: String? = null,
     val payments: List<Payment> = emptyList(),
     val lists: List<Checklist> = emptyList(),
+    /** Catálogo de productos (todos del usuario local). */
+    val products: List<Product> = emptyList(),
     val invites: List<ShareInvite> = emptyList(),
 )
 

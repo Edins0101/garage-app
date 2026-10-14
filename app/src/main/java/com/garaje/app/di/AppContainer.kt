@@ -26,6 +26,7 @@ import java.io.File
  * según BuildConfig.USE_FAKES (definido en app/build.gradle.kts).
  */
 class AppContainer(context: Context) {
+    private val appContext = context.applicationContext
     val useFakes: Boolean = BuildConfig.USE_FAKES
 
     private val sessions = SessionStore(context)
@@ -51,7 +52,7 @@ class AppContainer(context: Context) {
         if (useFakes) {
             DataRepositories(
                 FakeGarageRepository(fakeStore),
-                FakeListsRepository(fakeStore),
+                FakeListsRepository(fakeStore, File(appContext.filesDir, "fake-images")),
                 FakeSharingRepository(fakeStore),
             )
         } else {

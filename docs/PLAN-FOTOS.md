@@ -1,6 +1,6 @@
 # Plan: fotos en las listas (catálogo de productos)
 
-> Estado: **diseño aprobado en parte; falta elegir el almacenamiento** (ver "Decisiones pendientes").
+> Estado: **fases 1–4 implementadas** (2026-10-14). Almacenamiento: Supabase Storage, bucket privado `garaje-fotos`.
 > Al implementar cada fase, marcarla aquí y en PROGRESS.md.
 
 ## Decisiones tomadas (2026-10-14)
@@ -79,10 +79,10 @@ Así el catálogo crece solo y el autocompletar mejora con el uso.
 
 ## Fases
 
-1. [ ] **Catálogo sin fotos**: tabla `products`, vinculación automática y autocompletar (backend + app).
-2. [ ] **Almacenamiento + foto del producto** desde galería o cámara, miniaturas y visor.
-3. [ ] **Foto desde URL**.
-4. [ ] **Foto propia por elemento**.
+1. [x] **Catálogo sin fotos**: tabla `products`, vinculación automática y autocompletar (backend + app).
+2. [x] **Almacenamiento + foto del producto** desde galería o cámara, miniaturas y visor.
+3. [x] **Foto desde URL**.
+4. [x] **Foto propia por elemento**.
 5. [ ] Pantalla "Mis productos" (renombrar, cambiar foto, borrar) y limpieza de fotos huérfanas.
 
 La fase 1 ya aporta algo útil (autocompletar) y no depende del almacenamiento.

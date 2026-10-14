@@ -8,6 +8,8 @@ import com.garaje.app.domain.model.GarageDay
 import com.garaje.app.domain.model.GarageSettings
 import com.garaje.app.domain.model.GarageSummary
 import com.garaje.app.domain.model.Payment
+import com.garaje.app.domain.model.Product
+import com.garaje.app.domain.repository.PhotoInput
 import com.garaje.app.domain.model.MemberRole
 import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
@@ -164,6 +166,10 @@ class RemoteGarageRepository(private val api: ApiClient) : GarageRepository {
     }
 }
 
+@Serializable private data class UploadBody(val listId: String, val contentType: String = "image/jpeg")
+@Serializable private data class UploadResponse(val uploadUrl: String, val key: String, val contentType: String)
+@Serializable private data class ImageBody(val key: String? = null, val url: String? = null)
+
 class RemoteListsRepository(private val api: ApiClient) : ListsRepository {
     private val cache = MutableStateFlow<List<Checklist>>(emptyList())
 
@@ -222,6 +228,46 @@ class RemoteListsRepository(private val api: ApiClient) : ListsRepository {
 
     override suspend fun clearCompleted(listId: String) {
         api.request("POST", "/lists/${enc(listId)}/items/clear-completed", null, Checklist.serializer())
+        reload(listId)
+    }
+
+    override suspend fun searchProducts(listId: String, query: String): List<Product> =
+        api.request(
+            "GET",
+            "/lists/${enc(listId)}/products?q=${enc(query)}",
+            null,
+            ListSerializer(Product.serializer()),
+        )!!
+
+    /** Pide un enlace firmado, sube la foto directo al almacenamiento y devuelve su clave. */
+    private suspend fun upload(listId: String, jpeg: ByteArray): String {
+        val upload = api.request("POST", "/uploads", api.body(UploadBody(listId)), UploadResponse.serializer())!!
+        api.uploadBytes(upload.uploadUrl, jpeg, upload.contentType)
+        return upload.key
+    }
+
+    override suspend fun setProductImage(listId: String, productId: String, photo: PhotoInput) {
+        val body = when (photo) {
+            is PhotoInput.Jpeg -> ImageBody(key = upload(listId, photo.bytes))
+            is PhotoInput.Url -> ImageBody(url = photo.url.trim())
+        }
+        api.request("PUT", "/lists/${enc(listId)}/products/${enc(productId)}/image", api.body(body), Product.serializer())
+        reload(listId)
+    }
+
+    override suspend fun removeProductImage(listId: String, productId: String) {
+        api.request("DELETE", "/lists/${enc(listId)}/products/${enc(productId)}/image", null, Product.serializer())
+        reload(listId)
+    }
+
+    override suspend fun setItemImage(listId: String, itemId: String, jpeg: ByteArray) {
+        val body = ImageBody(key = upload(listId, jpeg))
+        api.request("PUT", "/lists/${enc(listId)}/items/${enc(itemId)}/image", api.body(body), ChecklistItem.serializer())
+        reload(listId)
+    }
+
+    override suspend fun removeItemImage(listId: String, itemId: String) {
+        api.request("DELETE", "/lists/${enc(listId)}/items/${enc(itemId)}/image", null, ChecklistItem.serializer())
         reload(listId)
     }
 }

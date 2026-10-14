@@ -52,7 +52,9 @@
 - [x] Mosaicos del menú principal más compactos
 - [ ] Guardar las preferencias del inicio y el color en el backend (hoy quedan en el teléfono)
 - [ ] Rotar la contraseña de la base y la clave de Brevo (se vieron en el chat y en una captura)
-- [ ] Fotos en las listas con catálogo de productos (plan en [PLAN-FOTOS.md](PLAN-FOTOS.md))
+- [x] Fotos en las listas con catálogo de productos, fases 1–4 ([PLAN-FOTOS.md](PLAN-FOTOS.md))
+- [ ] Configurar en Render las variables `STORAGE_*` (endpoint, región, bucket, claves de Supabase)
+- [ ] Rotar las claves S3 de Supabase y la contraseña de su base (se compartieron en el chat)
 - [ ] Sincronización en tiempo real de las listas compartidas (FCM)
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
@@ -70,3 +72,4 @@
 - Garaje con cuenta: tarifa por día guardada en cada día, cargos extra (varios por día), pagos y resumen con el pendiente hasta hoy. También el marcado automático diario. Probado contra producción (API) y en el emulador con datos locales: tarifa, auto, pago parcial y cargo.
 - Inicio personalizable: bienvenida "¿Qué es lo más importante para ti?", secciones Garaje/Compras/Tareas en el orden del usuario, y "Personalizar inicio" para reordenar u ocultar. Las preferencias se guardan por usuario en el teléfono (`HomePrefsStore`).
 - Apariencia: `Palette` ahora se calcula desde un tono base (`ThemeState` + `AccentPalette`), así que al elegir otro color toda la UI se redibuja sola. Los colores claros (turquesa, verde, ámbar) se oscurecen para mantener el contraste del texto blanco. El color se guarda en el teléfono (`AppearanceStore`). Los mosaicos del menú son unos 25% más bajos.
+- Fotos: catálogo de productos (autocompletar), foto del producto (galería, cámara o URL) y foto propia por elemento, guardadas en Supabase Storage con subida directa por enlace firmado. La app comprime a 1280 px y quita el EXIF. Probado: 26 tests del backend, subida y lectura firmadas contra Supabase real, y en el emulador (con datos locales) cámara, miniatura, visor y autocompletar.
