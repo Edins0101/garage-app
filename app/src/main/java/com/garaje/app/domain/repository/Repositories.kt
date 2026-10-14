@@ -9,6 +9,8 @@ import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
 import com.garaje.app.domain.model.User
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
 /*
@@ -17,7 +19,22 @@ import java.time.LocalDate
  * Los métodos `observe*` emiten cada vez que cambian los datos.
  */
 
+/** Sesión iniciada: token de la API + usuario. */
+@Serializable
+data class Session(val token: String, val user: User)
+
 interface AuthRepository {
+    /** null = no hay sesión (se muestra el login). Persiste entre reinicios de la app. */
+    val session: StateFlow<Session?>
+
+    /** Login simple sin Google (solo si el backend tiene ALLOW_DEV_LOGIN=true). */
+    suspend fun loginDev(email: String, name: String): User
+
+    /** Login con el ID token de "Iniciar sesión con Google". */
+    suspend fun loginGoogle(idToken: String): User
+
+    fun logout()
+
     suspend fun currentUser(): User
 }
 
@@ -65,5 +82,5 @@ class DataException(
     message: String,
     val kind: Kind = Kind.UNKNOWN,
 ) : Exception(message) {
-    enum class Kind { NOT_FOUND, INVALID, FORBIDDEN, NETWORK, UNKNOWN }
+    enum class Kind { NOT_FOUND, INVALID, FORBIDDEN, UNAUTHORIZED, NETWORK, UNKNOWN }
 }

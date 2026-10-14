@@ -15,8 +15,8 @@ App personal para Android con dos funciones principales:
 
 ## Alcance actual
 
-- **Solo app, sin backend.** Los datos se guardan en un archivo JSON privado del teléfono
-  (`files/fake-db.json`) a través de **repositorios falsos** que imitan al futuro backend.
+- **App + backend propio** (`garaje-backend`, FastAPI en Render, Postgres 18). Los datos viven en la nube y se comparten de verdad.
+  Los repositorios falsos siguen disponibles (`USE_FAKES=true`) para desarrollar sin internet.
 - Formas de compartir:
   - **Enviar la lista como texto** con la hoja de compartir de Android (WhatsApp, SMS…). Ya funciona de verdad.
   - **Código de invitación** y deep link `garajeapp://join/CODIGO`. Se simulan en el teléfono.

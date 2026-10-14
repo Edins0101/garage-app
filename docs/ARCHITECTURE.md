@@ -48,6 +48,14 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 - Los ViewModels se crean con `appViewModel { container -> … }`. Para leer argumentos de
   navegación se usa `createSavedStateHandle().toRoute<…>()`.
 
+## Sesión
+
+- `LoginScreen` (`ui/login`) se muestra mientras `AuthRepository.session` sea `null`. `MainActivity` cambia sola a la app al iniciar sesión, y vuelve al login al cerrarla.
+- `SessionStore` guarda el token y el usuario en SharedPreferences privadas; `ApiClient` agrega `Authorization: Bearer` en cada petición.
+- Si la API responde 401 (token vencido o usuario borrado), se cierra la sesión automáticamente.
+- Al cerrar sesión, `AppContainer` recrea los repositorios para no mostrar datos cacheados del usuario anterior.
+- Timeouts de 75 s: el plan Free de Render se duerme y la primera petición puede tardar ~1 minuto.
+
 ## Pantallas y rutas
 
 | Ruta | Pantalla | Notas |
@@ -60,7 +68,7 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 
 ## Cómo pasar de datos falsos a backend real
 
-1. En `app/build.gradle.kts`: `USE_FAKES` → `false` y `API_URL` → la URL del backend.
+1. En `app/build.gradle.kts`: `USE_FAKES` → `false` y `API_URL` → la URL del backend. **Hoy ya apunta a producción** (`https://garage-back-me4r.onrender.com/api`); para volver a los datos falsos, `USE_FAKES` → `true`.
 2. Implementar en el backend los endpoints de [API.md](API.md).
 3. Cuando exista login, asignar `ApiClient.authToken`.
 4. Para HTTP sin TLS en desarrollo hace falta permitir cleartext (network security config); en producción, usar HTTPS.

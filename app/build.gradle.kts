@@ -16,8 +16,8 @@ android {
         versionName = "0.1.0"
 
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
-        buildConfigField("boolean", "USE_FAKES", "true")
-        buildConfigField("String", "API_URL", "\"http://10.0.2.2:8000/api\"")
+        buildConfigField("boolean", "USE_FAKES", "false")
+        buildConfigField("String", "API_URL", "\"https://garage-back-me4r.onrender.com/api\"")
     }
 
     buildTypes {

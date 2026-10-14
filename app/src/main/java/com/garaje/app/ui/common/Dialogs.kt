@@ -13,11 +13,15 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.garaje.app.domain.model.ChecklistKind
@@ -49,6 +53,8 @@ fun TextInputDialog(
     description: String? = null,
 ) {
     var text by rememberSaveable { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.Sheet,
@@ -59,6 +65,9 @@ fun TextInputDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (description != null) Text(description)
                 OutlinedTextField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus),
                     value = text,
                     onValueChange = { text = it },
                     label = { Text(label) },
@@ -66,7 +75,6 @@ fun TextInputDialog(
                     minLines = if (singleLine) 1 else 3,
                     keyboardOptions = KeyboardOptions(capitalization = capitalization),
                     colors = garajeFieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
@@ -121,6 +129,8 @@ fun NewListDialog(
 ) {
     var title by rememberSaveable { mutableStateOf("") }
     var kind by rememberSaveable { mutableStateOf(initialKind) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.Sheet,
@@ -133,6 +143,9 @@ fun NewListDialog(
                     KindChip("✅ Tareas", kind == ChecklistKind.TODO) { kind = ChecklistKind.TODO }
                 }
                 OutlinedTextField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus),
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Nombre") },
@@ -142,7 +155,6 @@ fun NewListDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     colors = garajeFieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },

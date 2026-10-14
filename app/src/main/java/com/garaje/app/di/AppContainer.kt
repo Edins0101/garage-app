@@ -12,6 +12,7 @@ import com.garaje.app.data.remote.RemoteAuthRepository
 import com.garaje.app.data.remote.RemoteGarageRepository
 import com.garaje.app.data.remote.RemoteListsRepository
 import com.garaje.app.data.remote.RemoteSharingRepository
+import com.garaje.app.data.session.SessionStore
 import com.garaje.app.domain.repository.AuthRepository
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
@@ -25,19 +26,50 @@ import java.io.File
 class AppContainer(context: Context) {
     val useFakes: Boolean = BuildConfig.USE_FAKES
 
+    private val sessions = SessionStore(context)
     private val fakeStore by lazy { FakeStore(File(context.filesDir, "fake-db.json")) }
-    private val api by lazy { ApiClient(BuildConfig.API_URL) }
+    private val api by lazy {
+        ApiClient(
+            baseUrl = BuildConfig.API_URL,
+            tokenProvider = { sessions.token },
+            onUnauthorized = { auth.logout() },
+        )
+    }
+
+    /** Repositorios de datos de la sesión actual; se recrean al cerrar sesión. */
+    private class DataRepositories(
+        val garage: GarageRepository,
+        val lists: ListsRepository,
+        val sharing: SharingRepository,
+    )
+
+    private fun createData(): DataRepositories =
+        if (useFakes) {
+            DataRepositories(
+                FakeGarageRepository(fakeStore),
+                FakeListsRepository(fakeStore),
+                FakeSharingRepository(fakeStore),
+            )
+        } else {
+            val lists = RemoteListsRepository(api)
+            DataRepositories(RemoteGarageRepository(api), lists, RemoteSharingRepository(api, lists))
+        }
+
+    @Volatile
+    private var data = createData()
 
     val auth: AuthRepository by lazy {
-        if (useFakes) FakeAuthRepository(fakeStore) else RemoteAuthRepository(api)
+        val delegate = if (useFakes) FakeAuthRepository(fakeStore, sessions) else RemoteAuthRepository(api, sessions)
+        // Al cerrar sesión se descarta la caché en memoria del usuario anterior.
+        object : AuthRepository by delegate {
+            override fun logout() {
+                delegate.logout()
+                data = createData()
+            }
+        }
     }
-    val garage: GarageRepository by lazy {
-        if (useFakes) FakeGarageRepository(fakeStore) else RemoteGarageRepository(api)
-    }
-    val lists: ListsRepository by lazy {
-        if (useFakes) FakeListsRepository(fakeStore) else RemoteListsRepository(api)
-    }
-    val sharing: SharingRepository by lazy {
-        if (useFakes) FakeSharingRepository(fakeStore) else RemoteSharingRepository(api, lists)
-    }
+
+    val garage: GarageRepository get() = data.garage
+    val lists: ListsRepository get() = data.lists
+    val sharing: SharingRepository get() = data.sharing
 }

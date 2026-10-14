@@ -11,9 +11,12 @@ import com.garaje.app.domain.model.User
 import com.garaje.app.domain.repository.AuthRepository
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
+import com.garaje.app.domain.repository.Session
 import com.garaje.app.domain.repository.SharingRepository
+import com.garaje.app.data.session.SessionStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.Serializable
@@ -40,7 +43,29 @@ private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 
 private inline fun <reified T> ApiClient.body(value: T): String = json.encodeToString(serializer<T>(), value)
 
-class RemoteAuthRepository(private val api: ApiClient) : AuthRepository {
+@Serializable private data class DevLoginBody(val email: String, val name: String)
+@Serializable private data class GoogleLoginBody(val idToken: String)
+
+class RemoteAuthRepository(
+    private val api: ApiClient,
+    private val sessions: SessionStore,
+) : AuthRepository {
+    override val session: StateFlow<Session?> = sessions.session
+
+    override suspend fun loginDev(email: String, name: String): User =
+        login("/auth/dev", api.body(DevLoginBody(email.trim(), name.trim())))
+
+    override suspend fun loginGoogle(idToken: String): User =
+        login("/auth/google", api.body(GoogleLoginBody(idToken)))
+
+    private suspend fun login(path: String, body: String): User {
+        val session = api.request("POST", path, body, Session.serializer())!!
+        sessions.save(session)
+        return session.user
+    }
+
+    override fun logout() = sessions.clear()
+
     override suspend fun currentUser(): User = api.request("GET", "/me", null, User.serializer())!!
 }
 

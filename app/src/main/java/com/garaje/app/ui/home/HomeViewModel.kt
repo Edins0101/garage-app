@@ -60,6 +60,8 @@ class HomeViewModel(
         week.value = anchor.plusWeeks(weeks) to selected.plusWeeks(weeks)
     }
 
+    fun logout() = auth.logout()
+
     fun select(date: LocalDate) {
         week.value = week.value.first to date
     }

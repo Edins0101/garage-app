@@ -13,9 +13,12 @@ import com.garaje.app.domain.repository.AuthRepository
 import com.garaje.app.domain.repository.DataException
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
+import com.garaje.app.domain.repository.Session
 import com.garaje.app.domain.repository.SharingRepository
+import com.garaje.app.data.session.SessionStore
 import com.garaje.app.util.Ids
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -30,10 +33,28 @@ import java.time.LocalDate
 
 private fun now() = Instant.now().toString()
 
-class FakeAuthRepository(private val store: FakeStore) : AuthRepository {
+/** Login simulado: acepta cualquier correo y guarda la sesión en el teléfono. */
+class FakeAuthRepository(
+    private val store: FakeStore,
+    private val sessions: SessionStore,
+) : AuthRepository {
+    override val session: StateFlow<Session?> = sessions.session
+
+    override suspend fun loginDev(email: String, name: String): User {
+        store.simulateLatency()
+        val user = FakeSeed.currentUser.copy(name = name.trim(), email = email.trim().lowercase())
+        sessions.save(Session(token = "fake-token", user = user))
+        return user
+    }
+
+    override suspend fun loginGoogle(idToken: String): User =
+        throw DataException("El login con Google necesita el backend", DataException.Kind.INVALID)
+
+    override fun logout() = sessions.clear()
+
     override suspend fun currentUser(): User {
         store.simulateLatency()
-        return FakeSeed.currentUser
+        return sessions.session.value?.user ?: FakeSeed.currentUser
     }
 }
 

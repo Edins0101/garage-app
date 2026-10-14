@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DirectionsCar
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -63,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.ChecklistKind
 import com.garaje.app.ui.common.CollectMessages
+import com.garaje.app.ui.common.ConfirmDialog
 import com.garaje.app.ui.common.appViewModel
 import com.garaje.app.ui.components.CircleAvatar
 import com.garaje.app.ui.components.CosmicBackground
@@ -93,6 +96,17 @@ fun HomeScreen(
     CollectMessages(viewModel, snackbar)
 
     var query by rememberSaveable { mutableStateOf("") }
+    var confirmLogout by rememberSaveable { mutableStateOf(false) }
+
+    if (confirmLogout) {
+        ConfirmDialog(
+            title = "Cerrar sesión",
+            message = "Tus datos quedan guardados en la nube. Para volver a verlos, entra con el mismo correo.",
+            confirmText = "Cerrar sesión",
+            onConfirm = viewModel::logout,
+            onDismiss = { confirmLogout = false },
+        )
+    }
 
     CosmicBackground {
         Scaffold(
@@ -108,7 +122,7 @@ fun HomeScreen(
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BrandRow()
+                    BrandRow(onLogout = { confirmLogout = true })
                     Spacer(Modifier.height(12.dp))
                     CircleAvatar(Icons.Outlined.Person)
                     Spacer(Modifier.height(12.dp))
@@ -177,7 +191,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BrandRow() {
+private fun BrandRow(onLogout: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -187,6 +201,10 @@ private fun BrandRow() {
         Icon(Icons.Outlined.DirectionsCar, null, tint = Palette.OnDark)
         Spacer(Modifier.width(8.dp))
         Text("GARAJE", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 3.sp), color = Palette.OnDark)
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onLogout) {
+            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "Cerrar sesión", tint = Palette.OnDarkSoft)
+        }
     }
 }
 

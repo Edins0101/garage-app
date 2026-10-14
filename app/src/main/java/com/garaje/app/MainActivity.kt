@@ -1,14 +1,20 @@
 package com.garaje.app
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import androidx.activity.SystemBarStyle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.core.util.Consumer
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.garaje.app.ui.login.LoginScreen
 import com.garaje.app.ui.navigation.AppNavHost
 import com.garaje.app.ui.theme.GarajeTheme
 
@@ -20,22 +26,33 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
+        val auth = (application as GarajeApp).container.auth
         setContent {
             GarajeTheme {
-                val navController = rememberNavController()
-
-                // Con launchMode=singleTask, los deep links que llegan con la app abierta
-                // entran por onNewIntent: los reenviamos al NavController.
-                DisposableEffect(navController) {
-                    val listener = Consumer<android.content.Intent> { intent ->
-                        navController.handleDeepLink(intent)
-                    }
-                    addOnNewIntentListener(listener)
-                    onDispose { removeOnNewIntentListener(listener) }
+                val session by auth.session.collectAsStateWithLifecycle()
+                val userId = session?.user?.id
+                if (userId == null) {
+                    LoginScreen()
+                } else {
+                    // key: al cambiar de usuario se reinicia la navegación y sus ViewModels.
+                    key(userId) { MainContent(this) }
                 }
-
-                AppNavHost(navController)
             }
         }
     }
+}
+
+@Composable
+private fun MainContent(activity: ComponentActivity) {
+    val navController = rememberNavController()
+
+    // Con launchMode=singleTask, los deep links que llegan con la app abierta
+    // entran por onNewIntent: los reenviamos al NavController.
+    DisposableEffect(navController) {
+        val listener = Consumer<Intent> { intent -> navController.handleDeepLink(intent) }
+        activity.addOnNewIntentListener(listener)
+        onDispose { activity.removeOnNewIntentListener(listener) }
+    }
+
+    AppNavHost(navController)
 }
