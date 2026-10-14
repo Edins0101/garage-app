@@ -22,11 +22,59 @@ data class User(
 data class GarageDay(
     val date: String,
     val note: String? = null,
+    /** Tarifa de ESTE día (copia de la vigente al marcarlo). null = sin tarifa. */
+    val rate: Double? = null,
+    val charges: List<GarageCharge> = emptyList(),
+    /** Tarifa + cargos del día. */
+    val total: Double = 0.0,
     val createdAt: String,
     val updatedAt: String,
 ) {
     val localDate: LocalDate get() = LocalDate.parse(date)
 }
+
+/** Cargo extra de un día (lavado, multa…). Puede haber varios en el mismo día. */
+@Serializable
+data class GarageCharge(
+    val id: String,
+    val description: String,
+    val amount: Double,
+    val createdAt: String,
+)
+
+@Serializable
+data class Payment(
+    val id: String,
+    val date: String,
+    val amount: Double,
+    val note: String? = null,
+    val createdAt: String,
+) {
+    val localDate: LocalDate get() = LocalDate.parse(date)
+}
+
+@Serializable
+data class GarageSettings(
+    val dailyRate: Double? = null,
+    /** Marcar cada día automáticamente con la tarifa por defecto. */
+    val autoMark: Boolean = false,
+    /** "Hoy" según el servidor (zona horaria de Ecuador). */
+    val today: String = LocalDate.now().toString(),
+)
+
+/** Cuenta del garaje hasta `until`: días + cargos - pagos = pendiente. */
+@Serializable
+data class GarageSummary(
+    val until: String = LocalDate.now().toString(),
+    val dailyRate: Double? = null,
+    val days: Int = 0,
+    val daysWithoutRate: Int = 0,
+    val daysTotal: Double = 0.0,
+    val chargesTotal: Double = 0.0,
+    val total: Double = 0.0,
+    val paid: Double = 0.0,
+    val pending: Double = 0.0,
+)
 
 @Serializable
 enum class ChecklistKind {

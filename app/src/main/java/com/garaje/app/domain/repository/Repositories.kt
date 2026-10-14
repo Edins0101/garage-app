@@ -4,6 +4,9 @@ import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.ChecklistItem
 import com.garaje.app.domain.model.ChecklistKind
 import com.garaje.app.domain.model.GarageDay
+import com.garaje.app.domain.model.GarageSettings
+import com.garaje.app.domain.model.GarageSummary
+import com.garaje.app.domain.model.Payment
 import com.garaje.app.domain.model.MemberRole
 import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
@@ -57,11 +60,26 @@ interface AuthRepository {
 
 interface GarageRepository {
     fun observeDays(): Flow<List<GarageDay>>
+    fun observeSettings(): Flow<GarageSettings>
+    fun observeSummary(): Flow<GarageSummary>
+    fun observePayments(): Flow<List<Payment>>
     suspend fun refresh()
-    /** Crea o actualiza el día (nota opcional). */
+
+    /** Crea o actualiza el día (nota opcional). Al crearlo toma la tarifa vigente. */
     suspend fun setDay(date: LocalDate, note: String? = null): GarageDay
     suspend fun setDays(dates: List<LocalDate>)
     suspend fun removeDay(date: LocalDate)
+    /** Cambia la tarifa de un día puntual. */
+    suspend fun setDayRate(date: LocalDate, rate: Double)
+
+    /** Cambia la tarifa por defecto (y la aplica a los días sin tarifa) y/o el marcado automático. */
+    suspend fun updateSettings(dailyRate: Double? = null, autoMark: Boolean? = null)
+
+    suspend fun addCharge(date: LocalDate, description: String, amount: Double)
+    suspend fun removeCharge(chargeId: String)
+
+    suspend fun addPayment(date: LocalDate, amount: Double, note: String?)
+    suspend fun removePayment(paymentId: String)
 }
 
 interface ListsRepository {

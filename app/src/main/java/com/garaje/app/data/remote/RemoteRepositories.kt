@@ -3,7 +3,11 @@ package com.garaje.app.data.remote
 import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.ChecklistItem
 import com.garaje.app.domain.model.ChecklistKind
+import com.garaje.app.domain.model.GarageCharge
 import com.garaje.app.domain.model.GarageDay
+import com.garaje.app.domain.model.GarageSettings
+import com.garaje.app.domain.model.GarageSummary
+import com.garaje.app.domain.model.Payment
 import com.garaje.app.domain.model.MemberRole
 import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
@@ -14,6 +18,7 @@ import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
 import com.garaje.app.domain.repository.Session
 import com.garaje.app.domain.repository.SharingRepository
+import com.garaje.app.util.Money
 import com.garaje.app.data.session.SessionStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,18 +89,34 @@ class RemoteAuthRepository(
     override suspend fun currentUser(): User = api.request("GET", "/me", null, User.serializer())!!
 }
 
+@Serializable private data class RateBody(val rate: String)
+@Serializable private data class SettingsBody(val dailyRate: String? = null, val autoMark: Boolean? = null)
+@Serializable private data class ChargeBody(val description: String, val amount: String)
+@Serializable private data class PaymentBody(val date: String, val amount: String, val note: String?)
+
 class RemoteGarageRepository(private val api: ApiClient) : GarageRepository {
-    private val cache = MutableStateFlow<List<GarageDay>>(emptyList())
+    private val days = MutableStateFlow<List<GarageDay>>(emptyList())
+    private val settings = MutableStateFlow(GarageSettings())
+    private val summary = MutableStateFlow(GarageSummary())
+    private val payments = MutableStateFlow<List<Payment>>(emptyList())
 
-    override fun observeDays(): Flow<List<GarageDay>> = cache.onStart { refresh() }
+    override fun observeDays(): Flow<List<GarageDay>> = days.onStart { refresh() }
+    override fun observeSettings(): Flow<GarageSettings> = settings
+    override fun observeSummary(): Flow<GarageSummary> = summary
+    override fun observePayments(): Flow<List<Payment>> = payments
 
+    /** Recarga todo: el servidor rellena los días automáticos y recalcula la cuenta. */
     override suspend fun refresh() {
-        cache.value = api.request("GET", "/garage-days", null, ListSerializer(GarageDay.serializer()))!!
+        // El resumen va primero: rellena los días automáticos antes de listarlos.
+        summary.value = api.request("GET", "/garage/summary", null, GarageSummary.serializer())!!
+        days.value = api.request("GET", "/garage-days", null, ListSerializer(GarageDay.serializer()))!!
+        settings.value = api.request("GET", "/garage/settings", null, GarageSettings.serializer())!!
+        payments.value = api.request("GET", "/payments", null, ListSerializer(Payment.serializer()))!!
     }
 
     override suspend fun setDay(date: LocalDate, note: String?): GarageDay {
         val day = api.request("PUT", "/garage-days/$date", api.body(NoteBody(note)), GarageDay.serializer())!!
-        cache.value = cache.value.filterNot { it.date == day.date } + day
+        refresh()
         return day
     }
 
@@ -106,7 +127,40 @@ class RemoteGarageRepository(private val api: ApiClient) : GarageRepository {
 
     override suspend fun removeDay(date: LocalDate) {
         api.request<Unit>("DELETE", "/garage-days/$date", null, null)
-        cache.value = cache.value.filterNot { it.date == date.toString() }
+        refresh()
+    }
+
+    override suspend fun setDayRate(date: LocalDate, rate: Double) {
+        api.request("PUT", "/garage-days/$date", api.body(RateBody(Money.toApi(rate))), GarageDay.serializer())
+        refresh()
+    }
+
+    override suspend fun updateSettings(dailyRate: Double?, autoMark: Boolean?) {
+        val body = SettingsBody(dailyRate?.let(Money::toApi), autoMark)
+        settings.value = api.request("PUT", "/garage/settings", api.body(body), GarageSettings.serializer())!!
+        refresh()
+    }
+
+    override suspend fun addCharge(date: LocalDate, description: String, amount: Double) {
+        val body = ChargeBody(description.trim(), Money.toApi(amount))
+        api.request("POST", "/garage-days/$date/charges", api.body(body), GarageCharge.serializer())
+        refresh()
+    }
+
+    override suspend fun removeCharge(chargeId: String) {
+        api.request<Unit>("DELETE", "/garage-charges/${enc(chargeId)}", null, null)
+        refresh()
+    }
+
+    override suspend fun addPayment(date: LocalDate, amount: Double, note: String?) {
+        val body = PaymentBody(date.toString(), Money.toApi(amount), note?.trim()?.takeIf { it.isNotEmpty() })
+        api.request("POST", "/payments", api.body(body), Payment.serializer())
+        refresh()
+    }
+
+    override suspend fun removePayment(paymentId: String) {
+        api.request<Unit>("DELETE", "/payments/${enc(paymentId)}", null, null)
+        refresh()
     }
 }
 

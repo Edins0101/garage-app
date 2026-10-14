@@ -2,6 +2,8 @@ package com.garaje.app.data.fake
 
 import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.GarageDay
+import com.garaje.app.domain.model.GarageSettings
+import com.garaje.app.domain.model.Payment
 import com.garaje.app.domain.model.ShareInvite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -19,6 +21,10 @@ import java.io.File
 @Serializable
 data class FakeDb(
     val garageDays: List<GarageDay> = emptyList(),
+    val garageSettings: GarageSettings = GarageSettings(),
+    /** Último día rellenado por el marcado automático. */
+    val autoFilledUntil: String? = null,
+    val payments: List<Payment> = emptyList(),
     val lists: List<Checklist> = emptyList(),
     val invites: List<ShareInvite> = emptyList(),
 )

@@ -12,6 +12,7 @@ import com.garaje.app.data.remote.RemoteAuthRepository
 import com.garaje.app.data.remote.RemoteGarageRepository
 import com.garaje.app.data.remote.RemoteListsRepository
 import com.garaje.app.data.remote.RemoteSharingRepository
+import com.garaje.app.data.prefs.HomePrefsStore
 import com.garaje.app.data.session.SessionStore
 import com.garaje.app.domain.repository.AuthRepository
 import com.garaje.app.domain.repository.GarageRepository
@@ -27,6 +28,7 @@ class AppContainer(context: Context) {
     val useFakes: Boolean = BuildConfig.USE_FAKES
 
     private val sessions = SessionStore(context)
+    val homePrefs = HomePrefsStore(context)
     private val fakeStore by lazy { FakeStore(File(context.filesDir, "fake-db.json")) }
     private val api by lazy {
         ApiClient(

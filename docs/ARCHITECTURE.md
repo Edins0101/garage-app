@@ -56,6 +56,12 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 - Al cerrar sesión, `AppContainer` recrea los repositorios para no mostrar datos cacheados del usuario anterior.
 - Timeouts de 75 s: el plan Free de Render se duerme y la primera petición puede tardar ~1 minuto.
 
+## Inicio personalizable
+
+- `HomePrefsStore` (`data/prefs`) guarda por usuario el orden y la visibilidad de las secciones (`HomeSection`: GARAGE, SHOPPING, TASKS).
+- La primera vez (`configured = false`) se muestra `WelcomeChoiceSheet` para elegir la sección principal. Después, `CustomizeHomeDialog` permite reordenar y ocultar.
+- El menú de mosaicos y la hoja blanca del inicio siguen ese orden; siempre queda al menos una sección visible.
+
 ## Pantallas y rutas
 
 | Ruta | Pantalla | Notas |

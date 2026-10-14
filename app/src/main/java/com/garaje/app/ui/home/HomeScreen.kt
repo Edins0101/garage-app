@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
@@ -62,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garaje.app.data.prefs.HomePrefs
+import com.garaje.app.data.prefs.HomeSection
 import com.garaje.app.domain.model.Checklist
 import com.garaje.app.domain.model.ChecklistKind
 import com.garaje.app.ui.common.CollectMessages
@@ -72,6 +75,7 @@ import com.garaje.app.ui.components.CosmicBackground
 import com.garaje.app.ui.components.GlassField
 import com.garaje.app.ui.components.MenuTile
 import com.garaje.app.ui.components.PeriodHeader
+import com.garaje.app.ui.components.PillButton
 import com.garaje.app.ui.components.SectionTitle
 import com.garaje.app.ui.components.SheetTitle
 import com.garaje.app.ui.components.SquareIconButton
@@ -81,6 +85,7 @@ import com.garaje.app.ui.components.ScrollingSheetLayout
 import com.garaje.app.ui.navigation.ListsRoute
 import com.garaje.app.ui.theme.Palette
 import com.garaje.app.util.Dates
+import com.garaje.app.util.Money
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -90,13 +95,27 @@ fun HomeScreen(
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
 ) {
-    val viewModel = appViewModel { HomeViewModel(it.auth, it.garage, it.lists) }
+    val viewModel = appViewModel { HomeViewModel(it.auth, it.garage, it.lists, it.homePrefs) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
 
     var query by rememberSaveable { mutableStateOf("") }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    var customizing by rememberSaveable { mutableStateOf(false) }
+
+    // Primera vez: preguntar qué quiere ver primero.
+    if (!state.prefs.configured) {
+        WelcomeChoiceSheet(onChoose = viewModel::choosePrimary)
+    }
+    if (customizing) {
+        CustomizeHomeDialog(
+            prefs = state.prefs,
+            onMove = viewModel::moveSection,
+            onToggle = viewModel::toggleSection,
+            onDismiss = { customizing = false },
+        )
+    }
 
     if (confirmLogout) {
         ConfirmDialog(
@@ -122,7 +141,7 @@ fun HomeScreen(
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BrandRow(onLogout = { confirmLogout = true })
+                    BrandRow(onCustomize = { customizing = true }, onLogout = { confirmLogout = true })
                     Spacer(Modifier.height(12.dp))
                     CircleAvatar(Icons.Outlined.Person)
                     Spacer(Modifier.height(12.dp))
@@ -163,26 +182,42 @@ fun HomeScreen(
                     Spacer(Modifier.height(24.dp))
                     SectionTitle("Menú principal")
                     Spacer(Modifier.height(18.dp))
-                    MainMenu(onOpenGarage = onOpenGarage, onOpenLists = onOpenLists)
+                    MainMenu(prefs = state.prefs, onOpenGarage = onOpenGarage, onOpenLists = onOpenLists)
                     Spacer(Modifier.height(28.dp))
                 }
 
                 },
                 sheet = {
-                    GarageAgenda(
-                        state = state,
-                        onPrevious = viewModel::previousWeek,
-                        onNext = viewModel::nextWeek,
-                        onSelect = viewModel::select,
-                        onToggle = viewModel::toggleSelected,
-                        onOpenGarage = onOpenGarage,
-                    )
-                    Spacer(Modifier.height(28.dp))
-                    RecentLists(
-                        lists = state.lists.take(3),
-                        onOpenList = onOpenList,
-                        onSeeAll = { onOpenLists(ListsRoute()) },
-                    )
+                    // Las secciones aparecen en el orden que eligió el usuario.
+                    state.prefs.visible.forEachIndexed { index, section ->
+                        if (index > 0) Spacer(Modifier.height(28.dp))
+                        when (section) {
+                            HomeSection.GARAGE -> GarageAgenda(
+                                state = state,
+                                onPrevious = viewModel::previousWeek,
+                                onNext = viewModel::nextWeek,
+                                onSelect = viewModel::select,
+                                onToggle = viewModel::toggleSelected,
+                                onOpenGarage = onOpenGarage,
+                            )
+                            HomeSection.SHOPPING -> ListsSection(
+                                title = "Compras",
+                                lists = state.shoppingLists,
+                                emptyText = "No tienes listas de compras.",
+                                onOpenList = onOpenList,
+                                onSeeAll = { onOpenLists(ListsRoute(filter = "shopping")) },
+                                onCreate = { onOpenLists(ListsRoute(filter = "shopping", create = true)) },
+                            )
+                            HomeSection.TASKS -> ListsSection(
+                                title = "Tareas",
+                                lists = state.todoLists,
+                                emptyText = "No tienes listas de tareas.",
+                                onOpenList = onOpenList,
+                                onSeeAll = { onOpenLists(ListsRoute(filter = "todo")) },
+                                onCreate = { onOpenLists(ListsRoute(filter = "todo", create = true)) },
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(16.dp))
                 }
             )
@@ -191,7 +226,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BrandRow(onLogout: () -> Unit) {
+private fun BrandRow(onCustomize: () -> Unit, onLogout: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -202,6 +237,9 @@ private fun BrandRow(onLogout: () -> Unit) {
         Spacer(Modifier.width(8.dp))
         Text("GARAJE", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 3.sp), color = Palette.OnDark)
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onCustomize) {
+            Icon(Icons.Outlined.DashboardCustomize, contentDescription = "Personalizar inicio", tint = Palette.OnDarkSoft)
+        }
         IconButton(onClick = onLogout) {
             Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "Cerrar sesión", tint = Palette.OnDarkSoft)
         }
@@ -211,11 +249,16 @@ private fun BrandRow(onLogout: () -> Unit) {
 private data class MenuEntry(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
 @Composable
-private fun MainMenu(onOpenGarage: () -> Unit, onOpenLists: (ListsRoute) -> Unit) {
-    val entries = listOf(
-        MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage),
-        MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) },
-        MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) },
+private fun MainMenu(prefs: HomePrefs, onOpenGarage: () -> Unit, onOpenLists: (ListsRoute) -> Unit) {
+    // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
+    val main = prefs.visible.map { section ->
+        when (section) {
+            HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage)
+            HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
+            HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
+        }
+    }
+    val entries = main + listOf(
         MenuEntry(Icons.Outlined.Groups, "Compartidas") { onOpenLists(ListsRoute(filter = "shared")) },
         MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
         MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) },
@@ -226,6 +269,8 @@ private fun MainMenu(onOpenGarage: () -> Unit, onOpenLists: (ListsRoute) -> Unit
                 row.forEach { entry ->
                     MenuTile(entry.icon, entry.label, entry.onClick, Modifier.weight(1f))
                 }
+                // Mantiene el ancho de los mosaicos cuando la última fila queda incompleta.
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -242,7 +287,7 @@ private fun GarageAgenda(
 ) {
     SheetTitle("Agenda del garaje") {
         Text(
-            "${state.daysThisMonth} días este mes",
+            if (state.pending > 0) "Pendiente ${Money.format(state.pending)}" else "${state.daysThisMonth} días este mes",
             style = MaterialTheme.typography.bodyMedium,
             color = Palette.Violet,
             modifier = Modifier.clickable(onClick = onOpenGarage),
@@ -318,19 +363,32 @@ private fun GarageAgenda(
 }
 
 @Composable
-private fun ColumnScope.RecentLists(lists: List<Checklist>, onOpenList: (String) -> Unit, onSeeAll: () -> Unit) {
-    SheetTitle("Listas recientes")
-    Spacer(Modifier.height(12.dp))
-    if (lists.isEmpty()) {
-        Text("Aún no tienes listas.", color = Palette.InkSoft)
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        lists.forEach { list ->
-            ChecklistTicket(list, onClick = { onOpenList(list.id) })
+private fun ColumnScope.ListsSection(
+    title: String,
+    lists: List<Checklist>,
+    emptyText: String,
+    onOpenList: (String) -> Unit,
+    onSeeAll: () -> Unit,
+    onCreate: () -> Unit,
+) {
+    SheetTitle(title) {
+        val pending = lists.sumOf { list -> list.items.count { !it.done } }
+        if (pending > 0) {
+            Text("$pending pendientes", color = Palette.Violet, fontWeight = FontWeight.SemiBold)
         }
     }
+    Spacer(Modifier.height(12.dp))
+    if (lists.isEmpty()) {
+        Text(emptyText, color = Palette.InkSoft)
+        Spacer(Modifier.height(10.dp))
+        PillButton("Crear lista", onClick = onCreate, light = true, modifier = Modifier.fillMaxWidth())
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        lists.take(3).forEach { list -> ChecklistTicket(list, onClick = { onOpenList(list.id) }) }
+    }
     Text(
-        "VER TODAS…",
+        if (lists.size > 3) "VER LAS ${lists.size}…" else "VER TODAS…",
         style = MaterialTheme.typography.labelLarge,
         color = Palette.Ink,
         modifier = Modifier

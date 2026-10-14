@@ -44,6 +44,28 @@ Al iniciar sesión, las invitaciones por correo pendientes a ese email se acepta
 | PUT | `/garage-days/{date}` | `{ note?: string }` | `GarageDay` (crea o actualiza) |
 | DELETE | `/garage-days/{date}` | — | 204 |
 
+## Tarifa, cargos y pagos del garaje
+
+Montos en dólares: se envían como texto con 2 decimales (`"5.50"`) y se devuelven como número.
+"Hoy" se calcula en `America/Guayaquil` (`APP_TIMEZONE`).
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/garage/settings` | — | `{ dailyRate, autoMark, today }` |
+| PUT | `/garage/settings` | `{ dailyRate?, autoMark?, applyToDaysWithoutRate? = true }` | Igual que GET. Cambiar la tarifa no altera los días que ya tienen una; los días sin tarifa la toman |
+| GET | `/garage/summary?until=YYYY-MM-DD` | — | `{ until, dailyRate, days, daysWithoutRate, daysTotal, chargesTotal, total, paid, pending }` hasta `until` (por defecto hoy); los días futuros no cuentan |
+| POST | `/garage-days/{date}/charges` | `{ description, amount }` | 201 `GarageCharge`. Si el día no estaba marcado, lo marca |
+| DELETE | `/garage-charges/{id}` | — | 204 |
+| GET | `/payments` | — | `Payment[]` (más recientes primero) |
+| POST | `/payments` | `{ date, amount, note? }` | 201 `Payment` |
+| DELETE | `/payments/{id}` | — | 204 |
+
+- `GarageDay` incluye `rate` (tarifa de ese día, copiada de la vigente al marcarlo), `charges[]` y `total`.
+- `PUT /garage-days/{date}` acepta `{ note?, rate? }`; los campos que no se envían no cambian.
+- **Marcado automático** (`autoMark`): no hay cron. Al consultar días, resumen o configuración, el servidor
+  agrega los días que faltan hasta hoy con la tarifa por defecto, desde `garage_auto_filled_until`.
+  Los días que el usuario quite no vuelven a aparecer.
+
 ## Listas
 
 | Método | Ruta | Body | Respuesta |

@@ -45,6 +45,11 @@
 - [ ] Configurar OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
 - [ ] Rotar la contraseña de la base (se compartió en un chat)
 - [ ] Ver cuándo vence la base gratis de Render (30 días) y migrar a Neon antes de esa fecha
+- [x] Tarifa diaria (cada día guarda la suya), cargos extra por día, pagos y resumen "pendiente hasta hoy"
+- [x] Marcado automático diario con la tarifa por defecto (sin cron; los días quitados no reaparecen)
+- [x] Inicio personalizable: el usuario elige qué ver primero (Garaje, Compras o Tareas), puede reordenar y ocultar secciones
+- [ ] Guardar las preferencias del inicio en el backend (hoy quedan en el teléfono)
+- [ ] Rotar la contraseña de la base y la clave de Brevo (se vieron en el chat y en una captura)
 - [ ] Sincronización en tiempo real de las listas compartidas (FCM)
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
@@ -59,3 +64,5 @@
 - Se desplegó en Render (`garage-back-me4r`) y se conectó la app. Probado en el emulador: login, marcar un día y crear una lista quedaron guardados en Postgres. Los datos de prueba se borraron después.
 - Se agregó registro e inicio de sesión con contraseña. Probado en el emulador contra producción: crear cuenta, cerrar sesión, contraseña incorrecta y entrar de nuevo. Bug corregido: el ícono de mostrar contraseña robaba el foco al tocar "Siguiente" en el teclado.
 - Se agregaron códigos OTP por correo: verificación al crear cuenta y "¿Olvidaste tu contraseña?". Las casillas del código se vacían si el servidor lo rechaza. Render Free bloquea SMTP, así que el envío es por la API HTTP de Brevo. Mientras no esté configurado, el código sale en los logs.
+- Garaje con cuenta: tarifa por día guardada en cada día, cargos extra (varios por día), pagos y resumen con el pendiente hasta hoy. También el marcado automático diario. Probado contra producción (API) y en el emulador con datos locales: tarifa, auto, pago parcial y cargo.
+- Inicio personalizable: bienvenida "¿Qué es lo más importante para ti?", secciones Garaje/Compras/Tareas en el orden del usuario, y "Personalizar inicio" para reordenar u ocultar. Las preferencias se guardan por usuario en el teléfono (`HomePrefsStore`).
