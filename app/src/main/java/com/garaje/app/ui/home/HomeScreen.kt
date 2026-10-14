@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DashboardCustomize
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
@@ -84,6 +85,9 @@ import com.garaje.app.ui.components.WeekStrip
 import com.garaje.app.ui.components.ScrollingSheetLayout
 import com.garaje.app.ui.navigation.ListsRoute
 import com.garaje.app.ui.theme.Palette
+import com.garaje.app.ui.theme.ThemeState
+import com.garaje.app.GarajeApp
+import androidx.compose.ui.platform.LocalContext
 import com.garaje.app.util.Dates
 import com.garaje.app.util.Money
 import java.time.LocalDate
@@ -103,10 +107,19 @@ fun HomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var customizing by rememberSaveable { mutableStateOf(false) }
+    var appearance by rememberSaveable { mutableStateOf(false) }
+    val appearanceStore = (LocalContext.current.applicationContext as GarajeApp).container.appearance
 
     // Primera vez: preguntar qué quiere ver primero.
     if (!state.prefs.configured) {
         WelcomeChoiceSheet(onChoose = viewModel::choosePrimary)
+    }
+    if (appearance) {
+        AppearanceDialog(
+            current = ThemeState.accent,
+            onSelect = appearanceStore::set,
+            onDismiss = { appearance = false },
+        )
     }
     if (customizing) {
         CustomizeHomeDialog(
@@ -141,7 +154,11 @@ fun HomeScreen(
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BrandRow(onCustomize = { customizing = true }, onLogout = { confirmLogout = true })
+                    BrandRow(
+                        onAppearance = { appearance = true },
+                        onCustomize = { customizing = true },
+                        onLogout = { confirmLogout = true },
+                    )
                     Spacer(Modifier.height(12.dp))
                     CircleAvatar(Icons.Outlined.Person)
                     Spacer(Modifier.height(12.dp))
@@ -226,7 +243,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BrandRow(onCustomize: () -> Unit, onLogout: () -> Unit) {
+private fun BrandRow(onAppearance: () -> Unit, onCustomize: () -> Unit, onLogout: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -237,6 +254,9 @@ private fun BrandRow(onCustomize: () -> Unit, onLogout: () -> Unit) {
         Spacer(Modifier.width(8.dp))
         Text("GARAJE", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 3.sp), color = Palette.OnDark)
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onAppearance) {
+            Icon(Icons.Outlined.Palette, contentDescription = "Apariencia", tint = Palette.OnDarkSoft)
+        }
         IconButton(onClick = onCustomize) {
             Icon(Icons.Outlined.DashboardCustomize, contentDescription = "Personalizar inicio", tint = Palette.OnDarkSoft)
         }
@@ -263,9 +283,9 @@ private fun MainMenu(prefs: HomePrefs, onOpenGarage: () -> Unit, onOpenLists: (L
         MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
         MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) },
     )
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         entries.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { entry ->
                     MenuTile(entry.icon, entry.label, entry.onClick, Modifier.weight(1f))
                 }

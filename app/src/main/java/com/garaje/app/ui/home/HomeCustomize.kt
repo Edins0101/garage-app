@@ -1,6 +1,7 @@
 package com.garaje.app.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,10 +13,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -36,12 +40,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.garaje.app.data.prefs.HomePrefs
 import com.garaje.app.data.prefs.HomeSection
+import com.garaje.app.ui.theme.AccentColor
+import com.garaje.app.ui.theme.AccentPalette
 import com.garaje.app.ui.theme.Palette
 
 private data class SectionInfo(val icon: ImageVector, val title: String, val description: String)
@@ -178,4 +185,82 @@ private fun ArrowButton(icon: ImageVector, description: String, enabled: Boolean
             Icon(icon, description, tint = if (enabled) Palette.Ink else Palette.Divider)
         }
     }
+}
+
+/** Elegir el color principal de la app; el cambio se ve al instante. */
+@Composable
+fun AppearanceDialog(current: AccentColor, onSelect: (AccentColor) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Sheet,
+        titleContentColor = Palette.Ink,
+        textContentColor = Palette.InkSoft,
+        title = { Text("Apariencia") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Elige el color principal de la app.", fontSize = 13.sp)
+                AccentColor.entries.chunked(4).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        row.forEach { accent ->
+                            val palette = AccentPalette(accent.hue, accent.darken)
+                            val selected = accent == current
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { onSelect(accent) }
+                                    .padding(vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.linearGradient(listOf(palette.accentBright, palette.accentDeep)))
+                                        .border(
+                                            width = if (selected) 3.dp else 0.dp,
+                                            color = if (selected) palette.nightTop else Color.Transparent,
+                                            shape = CircleShape,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (selected) Icon(Icons.Outlined.Check, null, tint = Palette.OnDark)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    accent.label,
+                                    fontSize = 12.sp,
+                                    color = if (selected) Palette.Ink else Palette.InkSoft,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                )
+                            }
+                        }
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                // Vista previa con los colores del fondo de la app.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Brush.verticalGradient(listOf(Palette.NightTop, Palette.NightBottom)))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Brush.verticalGradient(listOf(Palette.Violet, Palette.VioletDeep))),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Outlined.CalendarMonth, null, tint = Palette.OnDark, modifier = Modifier.size(22.dp)) }
+                    Text("Así se verá tu app", color = Palette.OnDark, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Listo", color = Palette.Violet) }
+        },
+    )
 }

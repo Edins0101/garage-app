@@ -35,6 +35,8 @@ Está basado en una imagen de referencia que dio el usuario (app de viajes con e
 - Tarjetas "boleto" lavanda con etiqueta superior y barra violeta inferior (`TicketCard`).
 - Paneles translúcidos con borde suave para los controles sobre el fondo (`GlassCard`).
 - Tema siempre oscuro, con íconos claros en las barras del sistema.
+- **Color principal configurable** (Apariencia): toda la paleta se deriva de un tono HSL (`ui/theme/Theme.kt`).
+  Para agregar un color nuevo basta con sumar una entrada a `AccentColor` (con `darken` si es un tono claro).
 
 ## Decisiones técnicas
 

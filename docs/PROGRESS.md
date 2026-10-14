@@ -48,7 +48,9 @@
 - [x] Tarifa diaria (cada día guarda la suya), cargos extra por día, pagos y resumen "pendiente hasta hoy"
 - [x] Marcado automático diario con la tarifa por defecto (sin cron; los días quitados no reaparecen)
 - [x] Inicio personalizable: el usuario elige qué ver primero (Garaje, Compras o Tareas), puede reordenar y ocultar secciones
-- [ ] Guardar las preferencias del inicio en el backend (hoy quedan en el teléfono)
+- [x] Color principal configurable ("Apariencia"): violeta, azul, turquesa, verde, ámbar, coral y rosa
+- [x] Mosaicos del menú principal más compactos
+- [ ] Guardar las preferencias del inicio y el color en el backend (hoy quedan en el teléfono)
 - [ ] Rotar la contraseña de la base y la clave de Brevo (se vieron en el chat y en una captura)
 - [ ] Sincronización en tiempo real de las listas compartidas (FCM)
 - [ ] Copia local en la app para funcionar sin conexión
@@ -66,3 +68,4 @@
 - Se agregaron códigos OTP por correo: verificación al crear cuenta y "¿Olvidaste tu contraseña?". Las casillas del código se vacían si el servidor lo rechaza. Render Free bloquea SMTP, así que el envío es por la API HTTP de Brevo. Mientras no esté configurado, el código sale en los logs.
 - Garaje con cuenta: tarifa por día guardada en cada día, cargos extra (varios por día), pagos y resumen con el pendiente hasta hoy. También el marcado automático diario. Probado contra producción (API) y en el emulador con datos locales: tarifa, auto, pago parcial y cargo.
 - Inicio personalizable: bienvenida "¿Qué es lo más importante para ti?", secciones Garaje/Compras/Tareas en el orden del usuario, y "Personalizar inicio" para reordenar u ocultar. Las preferencias se guardan por usuario en el teléfono (`HomePrefsStore`).
+- Apariencia: `Palette` ahora se calcula desde un tono base (`ThemeState` + `AccentPalette`), así que al elegir otro color toda la UI se redibuja sola. Los colores claros (turquesa, verde, ámbar) se oscurecen para mantener el contraste del texto blanco. El color se guarda en el teléfono (`AppearanceStore`). Los mosaicos del menú son unos 25% más bajos.

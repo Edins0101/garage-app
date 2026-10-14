@@ -229,10 +229,10 @@ fun MenuTile(
     selected: Boolean = false,
     compact: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(if (compact) 14.dp else 22.dp)
+    val shape = RoundedCornerShape(if (compact) 14.dp else 18.dp)
     Column(
         modifier = modifier
-            .aspectRatio(if (compact) 1.05f else 0.95f)
+            .aspectRatio(if (compact) 1.05f else 1.25f)
             .shadow(if (compact) 0.dp else 10.dp, shape, ambientColor = Palette.VioletDeep, spotColor = Palette.VioletDeep)
             .clip(shape)
             .background(
@@ -252,9 +252,9 @@ fun MenuTile(
             icon,
             contentDescription = null,
             tint = Palette.OnDark,
-            modifier = Modifier.size(if (compact) 34.dp else 46.dp),
+            modifier = Modifier.size(if (compact) 34.dp else 30.dp),
         )
-        Spacer(Modifier.height(if (compact) 6.dp else 10.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
