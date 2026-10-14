@@ -1,0 +1,30 @@
+# Garaje (Android nativo)
+
+App Android nativa en **Kotlin + Jetpack Compose** con dos funciones:
+un calendario de los días en que el carro está en el garaje y listas de
+compras/tareas que se pueden compartir. Por ahora no tiene backend: usa
+repositorios falsos que guardan los datos en el teléfono.
+
+## Lee primero
+
+- [docs/CONTEXT.md](docs/CONTEXT.md): visión, alcance, diseño y decisiones
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): paquetes, flujo de datos y cómo pasar al backend
+- [docs/API.md](docs/API.md): contrato REST que esperan los repositorios remotos
+- [docs/PROGRESS.md](docs/PROGRESS.md): qué está hecho, qué falta y la bitácora
+
+## Comandos (desde la raíz del proyecto)
+
+```bash
+./gradlew assembleDebug        # compila el APK de debug
+./gradlew installDebug         # compila e instala en el emulador o teléfono conectado
+```
+
+En terminal, si `java` no se encuentra: `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`.
+
+## Reglas del proyecto
+
+- UI, comentarios y documentación en **español**.
+- La UI y los ViewModels dependen solo de las interfaces de `domain/repository`. Nunca importan `data/fake` ni `data/remote` directamente; la elección se hace en `di/AppContainer.kt`.
+- Todo método nuevo de repositorio va en la interfaz y en **ambas** implementaciones (fake y remote), y se documenta en `docs/API.md`.
+- Los colores salen de `ui/theme/Palette` y los componentes visuales de `ui/components`. Mantener el estilo "noche violeta" (ver CONTEXT.md).
+- Al terminar una tarea: `./gradlew assembleDebug` sin errores ni advertencias, probar en el emulador y actualizar `docs/PROGRESS.md` (checklist y bitácora con fecha).
