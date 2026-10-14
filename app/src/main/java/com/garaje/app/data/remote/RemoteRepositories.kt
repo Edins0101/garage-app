@@ -9,6 +9,7 @@ import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
 import com.garaje.app.domain.model.User
 import com.garaje.app.domain.repository.AuthRepository
+import com.garaje.app.domain.repository.CodePurpose
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
 import com.garaje.app.domain.repository.Session
@@ -43,7 +44,10 @@ private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 
 private inline fun <reified T> ApiClient.body(value: T): String = json.encodeToString(serializer<T>(), value)
 
-@Serializable private data class RegisterBody(val name: String, val email: String, val password: String)
+@Serializable private data class RegisterBody(val name: String, val email: String, val password: String, val code: String)
+@Serializable private data class CodeBody(val email: String, val purpose: CodePurpose)
+@Serializable private data class ResetBody(val email: String, val code: String, val password: String)
+@Serializable private data class MessageResponse(val message: String)
 @Serializable private data class LoginBody(val email: String, val password: String)
 @Serializable private data class GoogleLoginBody(val idToken: String)
 
@@ -53,8 +57,15 @@ class RemoteAuthRepository(
 ) : AuthRepository {
     override val session: StateFlow<Session?> = sessions.session
 
-    override suspend fun register(name: String, email: String, password: String): User =
-        start("/auth/register", api.body(RegisterBody(name.trim(), email.trim(), password)))
+    override suspend fun requestCode(email: String, purpose: CodePurpose): String =
+        api.request("POST", "/auth/codes", api.body(CodeBody(email.trim(), purpose)), MessageResponse.serializer())!!
+            .message
+
+    override suspend fun register(name: String, email: String, password: String, code: String): User =
+        start("/auth/register", api.body(RegisterBody(name.trim(), email.trim(), password, code)))
+
+    override suspend fun resetPassword(email: String, code: String, newPassword: String): User =
+        start("/auth/password/reset", api.body(ResetBody(email.trim(), code, newPassword)))
 
     override suspend fun login(email: String, password: String): User =
         start("/auth/login", api.body(LoginBody(email.trim(), password)))

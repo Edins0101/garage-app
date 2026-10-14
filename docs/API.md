@@ -18,12 +18,15 @@ Los modelos JSON son los de `domain/model/Models.kt`.
 
 | Método | Ruta | Body | Respuesta |
 |---|---|---|---|
-| POST | `/auth/register` | `{ name, email, password }` | 201 `{ token, user: User }`. Contraseña de 8 a 128 caracteres; 409 si el correo ya tiene cuenta |
+| POST | `/auth/codes` | `{ email, purpose: 'register' \| 'reset' }` | 202 `{ message }`. Envía un código de 6 dígitos al correo. `register`: 409 si ya hay cuenta. `reset`: responde igual exista o no la cuenta. 429 si se pide antes de 60 s o más de 5 por hora |
+| POST | `/auth/register` | `{ name, email, password, code }` | 201 `{ token, user: User }`. Contraseña de 8 a 128 caracteres; 400 si el código es incorrecto, venció o se agotaron los 5 intentos; 409 si el correo ya tiene cuenta |
+| POST | `/auth/password/reset` | `{ email, code, password }` | `{ token, user: User }`: cambia la contraseña e inicia sesión |
 | POST | `/auth/login` | `{ email, password }` | `{ token, user: User }`; 401 "Correo o contraseña incorrectos" (no revela si el correo existe) |
 | POST | `/auth/google` | `{ idToken }` | `{ token, user: User }`: ID token de "Iniciar sesión con Google" |
 | POST | `/auth/dev` | `{ email, name }` | `{ token, user: User }`: entra **sin contraseña**; solo si `ALLOW_DEV_LOGIN=true` (desarrollo y tests, nunca en producción) |
 
 Las contraseñas se guardan como hash scrypt (`app/passwords.py`), nunca en texto plano.
+Los códigos de correo (`app/otp.py`) se guardan como HMAC, vencen en 10 minutos y son de un solo uso.
 
 Al iniciar sesión, las invitaciones por correo pendientes a ese email se aceptan solas.
 

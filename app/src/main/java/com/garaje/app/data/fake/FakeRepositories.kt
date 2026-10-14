@@ -10,6 +10,7 @@ import com.garaje.app.domain.model.ShareInvite
 import com.garaje.app.domain.model.SharedMember
 import com.garaje.app.domain.model.User
 import com.garaje.app.domain.repository.AuthRepository
+import com.garaje.app.domain.repository.CodePurpose
 import com.garaje.app.domain.repository.DataException
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
@@ -40,8 +41,17 @@ class FakeAuthRepository(
 ) : AuthRepository {
     override val session: StateFlow<Session?> = sessions.session
 
-    override suspend fun register(name: String, email: String, password: String): User =
+    // Sin backend no se envían correos: cualquier código de 6 dígitos sirve.
+    override suspend fun requestCode(email: String, purpose: CodePurpose): String {
+        store.simulateLatency()
+        return "Modo demo: usa cualquier código de 6 dígitos"
+    }
+
+    override suspend fun register(name: String, email: String, password: String, code: String): User =
         start(name.trim(), email)
+
+    override suspend fun resetPassword(email: String, code: String, newPassword: String): User =
+        start(email.substringBefore("@"), email)
 
     // Sin backend no hay cuentas reales: cualquier correo y contraseña entran.
     override suspend fun login(email: String, password: String): User =

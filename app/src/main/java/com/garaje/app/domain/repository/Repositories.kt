@@ -10,6 +10,7 @@ import com.garaje.app.domain.model.SharedMember
 import com.garaje.app.domain.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
@@ -19,6 +20,13 @@ import java.time.LocalDate
  * Los métodos `observe*` emiten cada vez que cambian los datos.
  */
 
+/** Para qué se pide el código por correo. */
+@Serializable
+enum class CodePurpose {
+    @SerialName("register") REGISTER,
+    @SerialName("reset") RESET,
+}
+
 /** Sesión iniciada: token de la API + usuario. */
 @Serializable
 data class Session(val token: String, val user: User)
@@ -27,8 +35,14 @@ interface AuthRepository {
     /** null = no hay sesión (se muestra el login). Persiste entre reinicios de la app. */
     val session: StateFlow<Session?>
 
-    /** Crea la cuenta con correo y contraseña e inicia sesión. */
-    suspend fun register(name: String, email: String, password: String): User
+    /** Envía al correo un código de 6 dígitos. Devuelve el mensaje para mostrar. */
+    suspend fun requestCode(email: String, purpose: CodePurpose): String
+
+    /** Crea la cuenta (con el código recibido por correo) e inicia sesión. */
+    suspend fun register(name: String, email: String, password: String, code: String): User
+
+    /** Cambia la contraseña con el código recibido por correo e inicia sesión. */
+    suspend fun resetPassword(email: String, code: String, newPassword: String): User
 
     /** Inicia sesión con correo y contraseña. */
     suspend fun login(email: String, password: String): User

@@ -50,7 +50,7 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 
 ## Sesión
 
-- `LoginScreen` (`ui/login`) tiene dos pestañas, "Entrar" y "Crear cuenta" (`/auth/login` y `/auth/register`). Se muestra mientras `AuthRepository.session` sea `null`. `MainActivity` cambia sola a la app al iniciar sesión, y vuelve al login al cerrarla.
+- `LoginScreen` (`ui/login`) tiene dos pestañas, "Entrar" y "Crear cuenta", más los pasos `AuthStep`: verificar el correo con un código de 6 dígitos (`OtpInput`) y recuperar la contraseña (correo → código + contraseña nueva). La lógica está en `LoginViewModel`. Se muestra mientras `AuthRepository.session` sea `null`. `MainActivity` cambia sola a la app al iniciar sesión, y vuelve al login al cerrarla.
 - `SessionStore` guarda el token y el usuario en SharedPreferences privadas; `ApiClient` agrega `Authorization: Bearer` en cada petición.
 - Si la API responde 401 (token vencido o usuario borrado), se cierra la sesión automáticamente.
 - Al cerrar sesión, `AppContainer` recrea los repositorios para no mostrar datos cacheados del usuario anterior.
