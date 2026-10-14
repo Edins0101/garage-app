@@ -52,6 +52,7 @@
 - [x] Mosaicos del menú principal más compactos
 - [ ] Guardar las preferencias del inicio y el color en el backend (hoy quedan en el teléfono)
 - [ ] Rotar la contraseña de la base y la clave de Brevo (se vieron en el chat y en una captura)
+- [ ] Fotos en las listas con catálogo de productos (plan en [PLAN-FOTOS.md](PLAN-FOTOS.md))
 - [ ] Sincronización en tiempo real de las listas compartidas (FCM)
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)

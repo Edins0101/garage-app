@@ -11,6 +11,7 @@ repositorios falsos que guardan los datos en el teléfono.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): paquetes, flujo de datos y cómo pasar al backend
 - [docs/API.md](docs/API.md): contrato REST que esperan los repositorios remotos
 - [docs/PROGRESS.md](docs/PROGRESS.md): qué está hecho, qué falta y la bitácora
+- [docs/PLAN-FOTOS.md](docs/PLAN-FOTOS.md): diseño de las fotos en las listas (catálogo de productos)
 
 ## Comandos (desde la raíz del proyecto)
 
