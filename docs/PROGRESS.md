@@ -75,3 +75,6 @@
 - Apariencia: `Palette` ahora se calcula desde un tono base (`ThemeState` + `AccentPalette`), así que al elegir otro color toda la UI se redibuja sola. Los colores claros (turquesa, verde, ámbar) se oscurecen para mantener el contraste del texto blanco. El color se guarda en el teléfono (`AppearanceStore`). Los mosaicos del menú son unos 25% más bajos.
 - Fotos: catálogo de productos (autocompletar), foto del producto (galería, cámara o URL) y foto propia por elemento, guardadas en Supabase Storage con subida directa por enlace firmado. La app comprime a 1280 px y quita el EXIF. Probado: 26 tests del backend, subida y lectura firmadas contra Supabase real, y en el emulador (con datos locales) cámara, miniatura, visor y autocompletar.
 - Loadings: `BaseViewModel.loadingState` (estados LOADING/READY/ERROR y `retry()`) en Inicio, Mi garaje, Mis listas y el detalle de la lista; esqueletos en `ui/components/Loading.kt`. Probado en el emulador con una demora artificial de 6 s.
+
+### 2026-10-15
+- Primer APK de release firmado (v0.1.0, ~2 MB con R8). La llave de firma quedó en `D:\Projects\garaje-keys` (fuera del repo, hay que respaldarla). Probado en el emulador contra producción: inicio de sesión, inicio, marcar día, crear lista y agregar elemento.

@@ -18,6 +18,7 @@ repositorios falsos que guardan los datos en el teléfono.
 ```bash
 ./gradlew assembleDebug        # compila el APK de debug
 ./gradlew installDebug         # compila e instala en el emulador o teléfono conectado
+./gradlew assembleRelease      # APK firmado → app/build/outputs/apk/release/app-release.apk
 ```
 
 En terminal, si `java` no se encuentra: `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`.
@@ -29,3 +30,12 @@ En terminal, si `java` no se encuentra: `JAVA_HOME="C:/Program Files/Android/And
 - Todo método nuevo de repositorio va en la interfaz y en **ambas** implementaciones (fake y remote), y se documenta en `docs/API.md`.
 - Los colores salen de `ui/theme/Palette` y los componentes visuales de `ui/components`. Mantener el estilo "noche violeta" (ver CONTEXT.md).
 - Al terminar una tarea: `./gradlew assembleDebug` sin errores ni advertencias, probar en el emulador y actualizar `docs/PROGRESS.md` (checklist y bitácora con fecha).
+
+## APK de release
+
+- Firma: llave en `D:\Projects\garaje-keys\` (`garaje-release.jks` + `keystore.properties`), **fuera del repo**.
+  `app/build.gradle.kts` la lee desde ahí (o desde la variable `GARAJE_KEYSTORE`). Sin esa llave no se pueden publicar actualizaciones.
+- Antes de cada release nuevo: subir `versionCode` (+1) y `versionName` en `app/build.gradle.kts`.
+- R8 (minify + shrink) está activo: probar el APK release en el emulador antes de distribuirlo (la serialización es lo primero que se rompe).
+- Las copias para compartir quedan en `releases/` (ignorada por git).
+

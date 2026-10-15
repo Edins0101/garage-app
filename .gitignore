@@ -9,3 +9,9 @@
 /captures/
 .externalNativeBuild/
 .cxx/
+
+# Firma de release (la llave vive en D:/Projects/garaje-keys)
+keystore.properties
+*.jks
+*.keystore
+releases/

@@ -1,7 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+/*
+ * Firma de release: se lee de keystore.properties (no va a git). Por defecto busca
+ * D:/Projects/garaje-keys/keystore.properties; se puede cambiar con la variable GARAJE_KEYSTORE.
+ */
+val keystoreProps = Properties().apply {
+    val path = System.getenv("GARAJE_KEYSTORE") ?: "D:/Projects/garaje-keys/keystore.properties"
+    val file = rootProject.file("keystore.properties").takeIf { it.exists() } ?: file(path)
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -20,9 +32,22 @@ android {
         buildConfigField("String", "API_URL", "\"https://garage-back-me4r.onrender.com/api\"")
     }
 
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
