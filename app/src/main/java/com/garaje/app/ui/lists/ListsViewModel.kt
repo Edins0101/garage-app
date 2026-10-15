@@ -6,6 +6,7 @@ import com.garaje.app.domain.model.ChecklistKind
 import com.garaje.app.domain.repository.ListsRepository
 import com.garaje.app.domain.repository.SharingRepository
 import com.garaje.app.ui.common.BaseViewModel
+import com.garaje.app.ui.common.Load
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,8 +28,10 @@ data class ListsUiState(
     val lists: List<Checklist> = emptyList(),
     val filter: ListFilter = ListFilter.ALL,
     val query: String = "",
-    val loaded: Boolean = false,
-)
+    val load: Load = Load.LOADING,
+) {
+    val loaded: Boolean get() = load == Load.READY
+}
 
 class ListsViewModel(
     initialFilter: String?,
@@ -44,24 +47,26 @@ class ListsViewModel(
     /** Id de la lista a abrir (después de crearla o de unirse). */
     val openList: SharedFlow<String> = _openList.asSharedFlow()
 
-    val state: StateFlow<ListsUiState> = combine(lists.observeLists(), filter, query) { all, f, q ->
-        val needle = q.trim().lowercase()
-        val visible = all
-            .filter {
-                when (f) {
-                    ListFilter.ALL -> true
-                    ListFilter.SHOPPING -> it.kind == ChecklistKind.SHOPPING
-                    ListFilter.TODO -> it.kind == ChecklistKind.TODO
-                    ListFilter.SHARED -> it.sharedWith.isNotEmpty()
+    val state: StateFlow<ListsUiState> = loadingState(ListsUiState(), { copy(load = it) }) {
+        combine(lists.observeLists(), filter, query) { all, f, q ->
+            val needle = q.trim().lowercase()
+            val visible = all
+                .filter {
+                    when (f) {
+                        ListFilter.ALL -> true
+                        ListFilter.SHOPPING -> it.kind == ChecklistKind.SHOPPING
+                        ListFilter.TODO -> it.kind == ChecklistKind.TODO
+                        ListFilter.SHARED -> it.sharedWith.isNotEmpty()
+                    }
                 }
-            }
-            .filter { list ->
-                needle.isEmpty() ||
-                    list.title.lowercase().contains(needle) ||
-                    list.items.any { it.text.lowercase().contains(needle) }
-            }
-        ListsUiState(visible, f, q, loaded = true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListsUiState())
+                .filter { list ->
+                    needle.isEmpty() ||
+                        list.title.lowercase().contains(needle) ||
+                        list.items.any { it.text.lowercase().contains(needle) }
+                }
+            ListsUiState(visible, f, q)
+        }
+    }
 
     fun setFilter(value: ListFilter) {
         filter.value = value

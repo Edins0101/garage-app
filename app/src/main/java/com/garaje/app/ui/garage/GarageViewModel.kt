@@ -7,6 +7,7 @@ import com.garaje.app.domain.model.GarageSummary
 import com.garaje.app.domain.model.Payment
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.ui.common.BaseViewModel
+import com.garaje.app.ui.common.Load
 import com.garaje.app.util.Dates
 import com.garaje.app.util.Money
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,7 @@ data class GarageUiState(
     val summary: GarageSummary = GarageSummary(),
     val payments: List<Payment> = emptyList(),
     val dialog: GarageDialog? = null,
+    val load: Load = Load.LOADING,
 ) {
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
     /** Días con nota o cargos extra (llevan un punto en el calendario). */
@@ -64,15 +66,17 @@ class GarageViewModel(private val garage: GarageRepository) : BaseViewModel() {
 
     private val local = MutableStateFlow(LocalState())
 
-    val state: StateFlow<GarageUiState> = combine(
-        local,
-        garage.observeDays(),
-        garage.observeSettings(),
-        garage.observeSummary(),
-        garage.observePayments(),
-    ) { ui, days, settings, summary, payments ->
-        GarageUiState(ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GarageUiState())
+    val state: StateFlow<GarageUiState> = loadingState(GarageUiState(), { copy(load = it) }) {
+        combine(
+            local,
+            garage.observeDays(),
+            garage.observeSettings(),
+            garage.observeSummary(),
+            garage.observePayments(),
+        ) { ui, days, settings, summary, payments ->
+            GarageUiState(ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog)
+        }
+    }
 
     fun previousMonth() = local.update { it.copy(month = it.month.minusMonths(1)) }
     fun nextMonth() = local.update { it.copy(month = it.month.plusMonths(1)) }

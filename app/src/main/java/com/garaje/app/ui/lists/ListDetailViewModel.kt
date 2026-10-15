@@ -14,6 +14,7 @@ import com.garaje.app.domain.repository.PhotoInput
 import com.garaje.app.domain.repository.ListsRepository
 import com.garaje.app.domain.repository.SharingRepository
 import com.garaje.app.ui.common.BaseViewModel
+import com.garaje.app.ui.common.Load
 import com.garaje.app.ui.navigation.ListDetailRoute
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 
 data class ListDetailUiState(
     val list: Checklist? = null,
-    val loaded: Boolean = false,
+    val load: Load = Load.LOADING,
     val invite: ShareInvite? = null,
     val busy: Boolean = false,
     /** Productos del catálogo que coinciden con lo que se está escribiendo. */
@@ -38,6 +39,7 @@ data class ListDetailUiState(
     /** El usuario puede editar (dueño o editor); los "solo ver" no ven acciones. */
     val canEdit: Boolean = true,
 ) {
+    val loaded: Boolean get() = load == Load.READY
     val pending: List<ChecklistItem> = list?.items?.filterNot { it.done }.orEmpty()
     val done: List<ChecklistItem> = list?.items?.filter { it.done }.orEmpty()
 }
@@ -58,11 +60,10 @@ class ListDetailViewModel(
     private val suggestions = MutableStateFlow<List<Product>>(emptyList())
     private val uploading = MutableStateFlow(false)
 
-    val state: StateFlow<ListDetailUiState> =
+    val state: StateFlow<ListDetailUiState> = loadingState(ListDetailUiState(), { copy(load = it) }) {
         combine(lists.observeList(listId), extra, suggestions, uploading) { list, (invite, busy), found, isUploading ->
             ListDetailUiState(
                 list = list,
-                loaded = true,
                 invite = invite,
                 busy = busy,
                 suggestions = found,
@@ -70,7 +71,8 @@ class ListDetailViewModel(
                 canEdit = list == null || list.ownerId == currentUserId ||
                     list.sharedWith.any { it.userId == currentUserId && it.role == MemberRole.EDITOR },
             )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListDetailUiState())
+        }
+    }
 
     init {
         // Autocompletar: busca en el catálogo 250 ms después de dejar de escribir.

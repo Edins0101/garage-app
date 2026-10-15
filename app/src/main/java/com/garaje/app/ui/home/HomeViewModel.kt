@@ -11,6 +11,7 @@ import com.garaje.app.domain.repository.AuthRepository
 import com.garaje.app.domain.repository.GarageRepository
 import com.garaje.app.domain.repository.ListsRepository
 import com.garaje.app.ui.common.BaseViewModel
+import com.garaje.app.ui.common.Load
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,7 @@ data class HomeUiState(
     val pending: Double = 0.0,
     /** Qué secciones ve el usuario en el inicio y en qué orden. */
     val prefs: HomePrefs = HomePrefs(configured = true),
+    val load: Load = Load.LOADING,
 ) {
     val shoppingLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.SHOPPING }
     val todoLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.TODO }
@@ -53,15 +55,17 @@ class HomeViewModel(
     private val userName = MutableStateFlow("")
     private val week = MutableStateFlow(LocalDate.now() to LocalDate.now())
 
-    val state: StateFlow<HomeUiState> = combine(
-        combine(userName, prefs) { name, homePrefs -> name to homePrefs },
-        garage.observeDays(),
-        lists.observeLists(),
-        week,
-        garage.observeSummary(),
-    ) { (name, homePrefs), days, allLists, (anchor, selected), summary ->
-        HomeUiState(name, days, allLists, anchor, selected, summary.pending, homePrefs)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+    val state: StateFlow<HomeUiState> = loadingState(HomeUiState(), { copy(load = it) }) {
+        combine(
+            combine(userName, prefs) { name, homePrefs -> name to homePrefs },
+            garage.observeDays(),
+            lists.observeLists(),
+            week,
+            garage.observeSummary(),
+        ) { (name, homePrefs), days, allLists, (anchor, selected), summary ->
+            HomeUiState(name, days, allLists, anchor, selected, summary.pending, homePrefs)
+        }
+    }
 
     init {
         launchSafely { userName.value = auth.currentUser().name }

@@ -1,5 +1,9 @@
 package com.garaje.app.ui.lists
 
+import com.garaje.app.ui.components.TicketSkeleton
+import com.garaje.app.ui.components.SkeletonBox
+import com.garaje.app.ui.components.LoadNotice
+import com.garaje.app.ui.common.Load
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -141,6 +145,16 @@ fun ListsScreen(
 
                 },
                 sheet = {
+                    LoadNotice(state.load, onRetry = viewModel::retry)
+                    if (!state.loaded) {
+                        SheetTitle("Tus listas")
+                        Spacer(Modifier.height(14.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            repeat(3) { TicketSkeleton() }
+                        }
+                        Spacer(Modifier.height(88.dp))
+                        return@ScrollingSheetLayout
+                    }
                     SheetTitle(
                         when (state.lists.size) {
                             0 -> "Sin resultados"

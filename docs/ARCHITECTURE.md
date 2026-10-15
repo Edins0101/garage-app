@@ -44,6 +44,7 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 
 - Los repositorios exponen `observe*()` como `Flow`. Los ViewModels los combinan con su
   estado de UI (`combine` + `stateIn`) y las pantallas los leen con `collectAsStateWithLifecycle()`.
+- La carga de cada pantalla pasa por `loadingState(...)`: el estado lleva `load` (LOADING/READY/ERROR). La UI muestra esqueletos (`Loading.kt`) mientras carga y `LoadNotice` con "Reintentar" si falla.
 - Las acciones pasan por `launchSafely {}`: cualquier excepción se convierte en un mensaje de Snackbar.
 - Los ViewModels se crean con `appViewModel { container -> … }`. Para leer argumentos de
   navegación se usa `createSavedStateHandle().toRoute<…>()`.

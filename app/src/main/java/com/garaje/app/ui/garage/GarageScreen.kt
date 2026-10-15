@@ -1,5 +1,9 @@
 package com.garaje.app.ui.garage
 
+import com.garaje.app.ui.components.TicketSkeleton
+import com.garaje.app.ui.components.SkeletonBox
+import com.garaje.app.ui.components.LoadNotice
+import com.garaje.app.ui.common.Load
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -95,6 +99,7 @@ fun GarageScreen(onBack: () -> Unit) {
                     }
                 },
                 sheet = {
+                    LoadNotice(state.load, onRetry = viewModel::retry)
                     PeriodHeader(
                         label = Dates.monthYear(state.month),
                         onPrevious = viewModel::previousMonth,
@@ -119,7 +124,12 @@ fun GarageScreen(onBack: () -> Unit) {
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    if (state.monthDays.isEmpty()) {
+                    if (state.load != Load.READY) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            TicketSkeleton()
+                            TicketSkeleton()
+                        }
+                    } else if (state.monthDays.isEmpty()) {
                         Text("No hay días marcados este mes.", color = Palette.InkSoft)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -141,7 +151,9 @@ fun GarageScreen(onBack: () -> Unit) {
                         )
                     }
                     Spacer(Modifier.height(12.dp))
-                    if (state.payments.isEmpty()) {
+                    if (state.load != Load.READY) {
+                        TicketSkeleton()
+                    } else if (state.payments.isEmpty()) {
                         Text("Aún no registras pagos.", color = Palette.InkSoft)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -215,6 +227,15 @@ private fun AccountCard(state: GarageUiState, onSettings: () -> Unit, onPay: () 
                 modifier = Modifier.weight(1f),
             )
             Text(Dates.shortDay(LocalDate.parse(summary.until)), color = Palette.OnDarkSoft, fontSize = 14.sp)
+        }
+        if (state.load != Load.READY) {
+            Spacer(Modifier.height(8.dp))
+            SkeletonBox(width = 170.dp, height = 38.dp, onDark = true)
+            Spacer(Modifier.height(10.dp))
+            SkeletonBox(width = 230.dp, height = 13.dp, onDark = true)
+            Spacer(Modifier.height(14.dp))
+            SkeletonBox(height = 46.dp, shape = RoundedCornerShape(24.dp), onDark = true)
+            return@GlassCard
         }
         Text(
             Money.format(summary.pending),

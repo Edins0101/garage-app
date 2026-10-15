@@ -1,5 +1,10 @@
 package com.garaje.app.ui.lists
 
+import com.garaje.app.ui.components.ItemRowSkeleton
+import com.garaje.app.ui.components.TicketSkeleton
+import com.garaje.app.ui.components.SkeletonBox
+import com.garaje.app.ui.components.LoadNotice
+import com.garaje.app.ui.common.Load
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -156,11 +161,30 @@ fun ListDetailScreen(onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     TopBar(title = "", onBack = onBack)
-                    Spacer(Modifier.height(48.dp))
                     if (state.loaded) {
+                        Spacer(Modifier.height(48.dp))
                         Text("No encontramos esta lista.", color = Palette.OnDark)
                     } else {
-                        CircularProgressIndicator(color = Palette.VioletBright)
+                        // Forma de la pantalla mientras carga: título, progreso, campo y elementos.
+                        Spacer(Modifier.height(4.dp))
+                        SkeletonBox(width = 120.dp, height = 14.dp, onDark = true)
+                        Spacer(Modifier.height(10.dp))
+                        SkeletonBox(width = 200.dp, height = 26.dp, onDark = true)
+                        Spacer(Modifier.height(24.dp))
+                        SkeletonBox(height = 72.dp, shape = RoundedCornerShape(20.dp), onDark = true)
+                        Spacer(Modifier.height(14.dp))
+                        SkeletonBox(height = 46.dp, shape = RoundedCornerShape(22.dp), onDark = true)
+                        Spacer(Modifier.height(24.dp))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Palette.Sheet)
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                        ) {
+                            LoadNotice(state.load, onRetry = viewModel::retry)
+                            repeat(4) { i -> ItemRowSkeleton(textWidth = if (i % 2 == 0) 170.dp else 120.dp) }
+                        }
                     }
                 }
                 return@Scaffold

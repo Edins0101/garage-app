@@ -1,5 +1,9 @@
 package com.garaje.app.ui.home
 
+import com.garaje.app.ui.components.TicketSkeleton
+import com.garaje.app.ui.components.SkeletonBox
+import com.garaje.app.ui.components.LoadNotice
+import com.garaje.app.ui.common.Load
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -205,6 +209,13 @@ fun HomeScreen(
 
                 },
                 sheet = {
+                    if (state.load != Load.READY) {
+                        LoadNotice(state.load, onRetry = viewModel::retry)
+                        state.prefs.visible.forEachIndexed { index, section ->
+                            if (index > 0) Spacer(Modifier.height(28.dp))
+                            SectionSkeleton(section)
+                        }
+                    } else {
                     // Las secciones aparecen en el orden que eligió el usuario.
                     state.prefs.visible.forEachIndexed { index, section ->
                         if (index > 0) Spacer(Modifier.height(28.dp))
@@ -235,9 +246,37 @@ fun HomeScreen(
                             )
                         }
                     }
+                    }
                     Spacer(Modifier.height(16.dp))
                 }
             )
+        }
+    }
+}
+
+/** Forma de cada sección mientras llegan los datos. */
+@Composable
+private fun ColumnScope.SectionSkeleton(section: HomeSection) {
+    SheetTitle(
+        when (section) {
+            HomeSection.GARAGE -> "Agenda del garaje"
+            HomeSection.SHOPPING -> "Compras"
+            HomeSection.TASKS -> "Tareas"
+        },
+    )
+    Spacer(Modifier.height(14.dp))
+    if (section == HomeSection.GARAGE) {
+        SkeletonBox(width = 140.dp, height = 22.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Spacer(Modifier.height(12.dp))
+        SkeletonBox(height = 26.dp, shape = RoundedCornerShape(0.dp))
+        Spacer(Modifier.height(10.dp))
+        SkeletonBox(height = 40.dp)
+        Spacer(Modifier.height(10.dp))
+        SkeletonBox(height = 64.dp, shape = RoundedCornerShape(0.dp))
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            TicketSkeleton()
+            TicketSkeleton()
         }
     }
 }
