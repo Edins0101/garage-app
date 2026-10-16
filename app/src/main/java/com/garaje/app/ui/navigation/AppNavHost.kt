@@ -62,7 +62,10 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
             )
         }
-        composable<ListDetailRoute> {
+        composable<ListDetailRoute>(
+            // Al tocar una notificación de lista compartida.
+            deepLinks = listOf(navDeepLink<ListDetailRoute>(basePath = "garajeapp://list")),
+        ) {
             ListDetailScreen(onBack = { navController.popBackStack() })
         }
         composable<JoinRoute>(

@@ -13,6 +13,7 @@ import com.garaje.app.data.remote.RemoteGarageRepository
 import com.garaje.app.data.remote.RemoteListsRepository
 import com.garaje.app.data.remote.RemoteSharingRepository
 import com.garaje.app.data.prefs.AppearanceStore
+import com.garaje.app.data.push.PushRegistrar
 import com.garaje.app.data.prefs.HomePrefsStore
 import com.garaje.app.data.session.SessionStore
 import com.garaje.app.domain.repository.AuthRepository
@@ -63,11 +64,17 @@ class AppContainer(context: Context) {
     @Volatile
     private var data = createData()
 
+    /** Notificaciones push: registra este teléfono en el backend (no aplica en modo datos falsos). */
+    val push: PushRegistrar by lazy {
+        PushRegistrar(appContext, api.takeUnless { useFakes }, sessionToken = { sessions.token })
+    }
+
     val auth: AuthRepository by lazy {
         val delegate = if (useFakes) FakeAuthRepository(fakeStore, sessions) else RemoteAuthRepository(api, sessions)
         // Al cerrar sesión se descarta la caché en memoria del usuario anterior.
         object : AuthRepository by delegate {
             override fun logout() {
+                push.unregister(closingSessionToken = sessions.token)
                 delegate.logout()
                 data = createData()
             }

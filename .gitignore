@@ -15,3 +15,5 @@ keystore.properties
 *.jks
 *.keystore
 releases/
+# Configuración de Firebase (se descarga de la consola)
+app/google-services.json

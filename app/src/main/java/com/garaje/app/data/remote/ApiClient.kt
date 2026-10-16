@@ -30,6 +30,8 @@ class ApiClient(
         path: String,
         body: String? = null,
         responseSerializer: KSerializer<T>?,
+        /** Token a usar en vez del de la sesión (p. ej. al cerrar sesión, cuando ya se borró). */
+        authToken: String? = null,
     ): T? = withContext(Dispatchers.IO) {
         val connection = try {
             (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
@@ -38,7 +40,7 @@ class ApiClient(
                 connectTimeout = 75_000
                 readTimeout = 75_000
                 setRequestProperty("Accept", "application/json")
-                tokenProvider()?.let { setRequestProperty("Authorization", "Bearer $it") }
+                (authToken ?: tokenProvider())?.let { setRequestProperty("Authorization", "Bearer $it") }
                 if (body != null) {
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")

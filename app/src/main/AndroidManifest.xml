@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".GarajeApp"
@@ -29,7 +30,23 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="garajeapp" android:host="join" />
             </intent-filter>
+
+            <!-- Al tocar una notificación: garajeapp://list/ID abre esa lista. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="garajeapp" android:host="list" />
+            </intent-filter>
         </activity>
+
+        <!-- Recibe las notificaciones push de Firebase. -->
+        <service
+            android:name=".data.push.GarajeMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- La cámara guarda la foto en un archivo temporal de la app (ver res/xml/file_paths.xml). -->
         <provider

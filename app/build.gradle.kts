@@ -89,5 +89,16 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.exifinterface)
 
+    // Notificaciones push (Firebase Cloud Messaging).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     testImplementation(libs.junit)
+}
+
+// Firebase: el plugin solo se aplica si existe app/google-services.json (se descarga de la consola
+// de Firebase y no va a git). Sin ese archivo la app compila igual, pero sin notificaciones push.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
 }

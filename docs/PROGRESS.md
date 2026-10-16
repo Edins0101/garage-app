@@ -56,7 +56,8 @@
 - [x] Pantallas de carga con esqueletos animados, aviso de "despertando el servidor" y botón Reintentar si falla
 - [ ] Configurar en Render las variables `STORAGE_*` (endpoint, región, bucket, claves de Supabase)
 - [ ] Rotar las claves S3 de Supabase y la contraseña de su base (se compartieron en el chat)
-- [ ] Sincronización en tiempo real de las listas compartidas (FCM)
+- [x] Notificaciones push (FCM): aviso al agregar elementos o unirse a una lista compartida ([NOTIFICACIONES.md](NOTIFICACIONES.md))
+- [ ] Configurar Firebase: `google-services.json` en la app y `PUSH_PROVIDER`/`FIREBASE_SERVICE_ACCOUNT` en Render
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
 
@@ -79,3 +80,4 @@
 ### 2026-10-15
 - Primer APK de release firmado (v0.1.0, ~2 MB con R8). La llave de firma quedó en `D:\Projects\garaje-keys` (fuera del repo, hay que respaldarla). Probado en el emulador contra producción: inicio de sesión, inicio, marcar día, crear lista y agregar elemento.
 - Pantallas pequeñas y letra grande: los mosaicos ya no tienen proporción fija y sus textos se achican solos (`TextAutoSize`) en vez de cortarse. Lo mismo en el botón de tarifa del garaje y en las pestañas del acceso. Probado a 720×1280 y con la letra del sistema al 130 %.
+- Notificaciones push con FCM: backend (tabla devices, envío en segundo plano, 4 tests nuevos, 30 en total) y app (registro, servicio, deep link a la lista, permiso en Android 13+). Probado sin Firebase: la app funciona igual y el deep link abre la lista. Falta probar el envío real cuando exista el proyecto de Firebase.

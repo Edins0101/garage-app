@@ -1,19 +1,25 @@
 package com.garaje.app
 
+import android.Manifest
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.garaje.app.data.push.Notifications
 import com.garaje.app.ui.login.LoginScreen
 import com.garaje.app.ui.navigation.AppNavHost
 import com.garaje.app.ui.theme.GarajeTheme
@@ -54,5 +60,21 @@ private fun MainContent(activity: ComponentActivity) {
         onDispose { activity.removeOnNewIntentListener(listener) }
     }
 
+    NotificationSetup(activity)
     AppNavHost(navController)
+}
+
+/** Pide el permiso de notificaciones una vez (Android 13+) y registra el teléfono en el backend. */
+@Composable
+private fun NotificationSetup(activity: ComponentActivity) {
+    val push = (activity.application as GarajeApp).container.push
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { push.sync() }
+    LaunchedEffect(Unit) {
+        if (!push.available) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Notifications.canNotify(activity)) {
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            push.sync()
+        }
+    }
 }
