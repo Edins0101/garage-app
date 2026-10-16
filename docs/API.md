@@ -64,7 +64,18 @@ tiene su tarifa, marcado automático, días, cargos y pagos; `direction` = `pay`
 | DELETE | `/trackers/{id}/payments/{paymentId}` | — | 204 |
 
 - `icon` = `car` \| `child` \| `bus` \| `gym` \| `work` \| `pet` \| `home` \| `other`.
-- Solo el dueño ve sus contadores (sin acceso: 404). Compartirlos queda pendiente.
+- `Counter` incluye `ownerId`, `ownerName`, `role` (`owner` \| `editor` \| `viewer`) y `members`. `GET /trackers` trae
+  los propios y, después, los compartidos conmigo.
+- Permisos: **viewer** solo lee; **editor** marca días, cargos y pagos; **dueño** además cambia nombre/tarifa/marcado
+  automático, borra y comparte. Sin acceso: 404; permiso insuficiente: 403.
+- Al registrar un pago se avisa por push a los demás (`data: { type: 'tracker_payment', trackerId }` → `arianna://counter/{id}`).
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| POST | `/trackers/{id}/members` | `{ email, role }` | `SharedMember` (solo el dueño; si ya existe, cambia el rol) |
+| DELETE | `/trackers/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse) |
+| POST | `/trackers/{id}/invites` | — | `ShareInvite` con `trackerId`. Con el código se entra como **viewer** |
+| POST | `/join` | `{ code }` | `JoinResult` con `type: 'tracker'` y `trackerId` |
 - Las rutas de abajo (`/garage*`, `/garage-days`, `/payments`) son de versiones anteriores de la app y
   trabajan sobre el **primer** contador (si no hay, crean "Mi garaje").
 

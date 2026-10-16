@@ -64,9 +64,10 @@ data class CountersUiState(
     val busy: Boolean = false,
     val load: Load = Load.LOADING,
 ) {
-    /** Lo que debo (contadores "yo pago") y lo que me deben ("me pagan"), hasta hoy. */
-    val toPay: Double = counters.filter { it.direction == CounterDirection.PAY }.sumOf { it.summary.pending.coerceAtLeast(0.0) }
-    val toCollect: Double = counters.filter { it.direction == CounterDirection.EARN }.sumOf { it.summary.pending.coerceAtLeast(0.0) }
+    /** Lo que debo (mis contadores "yo pago") y lo que me deben ("me pagan"), hasta hoy. */
+    private val mine = counters.filter { it.mine }
+    val toPay: Double = mine.filter { it.direction == CounterDirection.PAY }.sumOf { it.summary.pending.coerceAtLeast(0.0) }
+    val toCollect: Double = mine.filter { it.direction == CounterDirection.EARN }.sumOf { it.summary.pending.coerceAtLeast(0.0) }
 }
 
 class CountersViewModel(private val counters: CountersRepository) : BaseViewModel() {
@@ -214,6 +215,8 @@ fun CounterTicket(counter: Counter, onClick: () -> Unit) {
                         counter.dailyRate?.let { "${Money.format(it)}/día" },
                         "auto".takeIf { counter.autoMark },
                         "me pagan".takeIf { earn },
+                        "De ${counter.ownerName}".takeIf { !counter.mine },
+                        "compartido con ${counter.members.size}".takeIf { counter.mine && counter.members.isNotEmpty() },
                     ).joinToString(" · "),
                     color = Palette.InkSoft,
                     fontSize = 13.sp,

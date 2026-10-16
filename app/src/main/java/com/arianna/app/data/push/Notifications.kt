@@ -22,6 +22,7 @@ object Notifications {
 
     fun listLink(listId: String) = "arianna://list/$listId"
     fun remindersLink(kind: String) = "arianna://reminders/$kind"
+    fun counterLink(id: String) = "arianna://counter/$id"
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

@@ -65,10 +65,11 @@ class AppContainer(context: Context) {
             )
         } else {
             val lists = RemoteListsRepository(api)
+            val counters = RemoteCountersRepository(api)
             DataRepositories(
-                RemoteCountersRepository(api),
+                counters,
                 lists,
-                RemoteSharingRepository(api, lists),
+                RemoteSharingRepository(api, lists, counters),
                 RemoteRemindersRepository(api),
             )
         }

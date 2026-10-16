@@ -39,10 +39,23 @@ enum class CounterDirection {
     @SerialName("earn") EARN,
 }
 
+/** Mi permiso sobre un contador: dueño, puede editar o solo ver. */
+@Serializable
+enum class CounterRole {
+    @SerialName("owner") OWNER,
+    @SerialName("editor") EDITOR,
+    @SerialName("viewer") VIEWER,
+}
+
 /** Contador por día (el garaje es uno más) con su cuenta hasta hoy. */
 @Serializable
 data class Counter(
     val id: String,
+    val ownerId: String = "",
+    val ownerName: String = "",
+    val role: CounterRole = CounterRole.OWNER,
+    /** Con quién lo comparto (solo lo llena el servidor; en el modo demo, el teléfono). */
+    val members: List<SharedMember> = emptyList(),
     val name: String,
     val icon: CounterIcon = CounterIcon.OTHER,
     val direction: CounterDirection = CounterDirection.PAY,
@@ -53,6 +66,8 @@ data class Counter(
     val createdAt: String,
 ) {
     val settings: GarageSettings get() = GarageSettings(dailyRate, autoMark, today)
+    val mine: Boolean get() = role == CounterRole.OWNER
+    val canEdit: Boolean get() = role != CounterRole.VIEWER
 }
 
 /** Un día marcado en un contador (ej. el carro en el garaje). */
@@ -203,6 +218,7 @@ data class ShareInvite(
     val url: String,
     val listId: String? = null,
     val spaceId: String? = null,
+    val trackerId: String? = null,
     val expiresAt: String,
 )
 
@@ -212,6 +228,7 @@ data class JoinResult(
     val type: String,
     val listId: String? = null,
     val spaceId: String? = null,
+    val trackerId: String? = null,
     val kind: ReminderKind? = null,
 )
 

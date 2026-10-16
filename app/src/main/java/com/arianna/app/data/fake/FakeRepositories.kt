@@ -156,6 +156,40 @@ class FakeCountersRepository(private val store: FakeStore) : CountersRepository 
 
     @Synchronized
     override fun counter(id: String): GarageRepository = scoped.getOrPut(id) { FakeCounterRepository(store, id) }
+
+    private val emailRegex = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
+    // Sin backend no hay otras personas: las invitaciones solo se guardan en el teléfono.
+    override suspend fun invite(counter: Counter, email: String, role: MemberRole): SharedMember {
+        val normalized = email.trim().lowercase()
+        if (!emailRegex.matches(normalized)) throw DataException("Correo no válido", DataException.Kind.INVALID)
+        if (normalized == FakeSeed.currentUser.email) {
+            throw DataException("No puedes invitarte a ti mismo", DataException.Kind.INVALID)
+        }
+        val member = SharedMember(email = normalized, role = role, status = MemberStatus.PENDING, invitedAt = now())
+        store.update { db ->
+            db.withCounter(counter.id) { it.copy(members = it.members.filterNot { m -> m.email == normalized } + member) } to Unit
+        }
+        return member
+    }
+
+    override suspend fun removeMember(counter: Counter, email: String) {
+        store.update { db -> db.withCounter(counter.id) { it.copy(members = it.members.filterNot { m -> m.email == email }) } to Unit }
+    }
+
+    override suspend fun createInvite(counter: Counter): ShareInvite = store.update { db ->
+        val nowInstant = Instant.now()
+        val valid = db.invites.filter { Instant.parse(it.expiresAt).isAfter(nowInstant) }
+        valid.find { it.trackerId == counter.id }?.let { return@update db.copy(invites = valid) to it }
+        val code = Ids.shareCode()
+        val invite = ShareInvite(
+            code = code,
+            url = "arianna://join/$code",
+            trackerId = counter.id,
+            expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
+        )
+        db.copy(invites = valid + invite) to invite
+    }
 }
 
 /** Contador guardado en el archivo del modo demo, con sus días y pagos. */
@@ -172,9 +206,13 @@ data class FakeCounter(
     val createdAt: String,
     val days: List<GarageDay> = emptyList(),
     val payments: List<Payment> = emptyList(),
+    val members: List<SharedMember> = emptyList(),
 ) {
     fun toCounter() = Counter(
         id = id,
+        ownerId = FakeSeed.currentUser.id,
+        ownerName = FakeSeed.currentUser.name,
+        members = members,
         name = name,
         icon = icon,
         direction = direction,
@@ -595,7 +633,8 @@ class FakeSharingRepository(private val store: FakeStore) : SharingRepository {
         val invite = db.invites.find {
             it.code == clean && Instant.parse(it.expiresAt).isAfter(Instant.now())
         } ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)
-        // Sin backend no existe otro usuario real: en el mock "unirse" solo abre la lista o la sección.
+        // Sin backend no existe otro usuario real: en el mock "unirse" solo abre la lista, la sección o el contador.
+        invite.trackerId?.let { return JoinResult(type = "tracker", trackerId = it) }
         invite.spaceId?.let { spaceId ->
             val space = db.spaces.find { it.id == spaceId }
                 ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)

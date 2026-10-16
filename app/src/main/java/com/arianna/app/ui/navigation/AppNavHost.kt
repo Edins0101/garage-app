@@ -72,7 +72,10 @@ fun AppNavHost(navController: NavHostController) {
                 onOpen = { id -> navController.navigate(CounterRoute(id)) },
             )
         }
-        composable<CounterRoute> { entry ->
+        composable<CounterRoute>(
+            // Al tocar el aviso de un pago en un contador compartido.
+            deepLinks = listOf(navDeepLink<CounterRoute>(basePath = "arianna://counter")),
+        ) { entry ->
             GarageScreen(counterId = entry.toRoute<CounterRoute>().id, onBack = { navController.popBackStack() })
         }
         composable<RemindersRoute>(
@@ -104,6 +107,7 @@ fun AppNavHost(navController: NavHostController) {
                 code = entry.toRoute<JoinRoute>().code,
                 onJoined = { result ->
                     val target: Any = result.listId?.let(::ListDetailRoute)
+                        ?: result.trackerId?.let(::CounterRoute)
                         ?: RemindersRoute(result.kind?.apiName ?: "all")
                     navController.navigate(target) {
                         popUpTo<JoinRoute> { inclusive = true }

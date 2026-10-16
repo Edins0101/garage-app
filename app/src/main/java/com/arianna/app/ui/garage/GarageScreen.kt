@@ -24,7 +24,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.GroupAdd
+import androidx.compose.ui.platform.LocalContext
+import com.arianna.app.ui.common.shareText
+import com.arianna.app.ui.lists.ShareSheet
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Sell
@@ -75,7 +80,11 @@ import java.time.LocalDate
 /** Calendario y cuenta de un contador por día (el garaje es uno más). */
 @Composable
 fun GarageScreen(counterId: String, onBack: () -> Unit) {
-    val viewModel = appViewModel(key = "counter-$counterId") { GarageViewModel(counterId, it.counters) }
+    val viewModel = appViewModel(key = "counter-$counterId") { container ->
+        val email = container.auth.session.value?.user?.email.orEmpty()
+        GarageViewModel(counterId, container.counters, email, container.useFakes)
+    }
+    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -95,13 +104,27 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
+                        val counter = state.counter
                         TopBar(
-                            title = state.counter?.name ?: "Contador",
-                            overline = "Contador por día",
+                            title = counter?.name ?: "Contador",
+                            overline = when {
+                                counter == null || counter.mine -> "Contador por día"
+                                counter.canEdit -> "De ${counter.ownerName} · puedes editar"
+                                else -> "De ${counter.ownerName} · solo ver"
+                            },
                             onBack = onBack,
                         ) {
-                            IconButton(onClick = viewModel::openEditCounter, enabled = state.counter != null) {
-                                Icon(Icons.Outlined.Edit, contentDescription = "Editar contador", tint = Palette.OnDark)
+                            if (counter != null && counter.mine) {
+                                IconButton(onClick = viewModel::openShare) {
+                                    Icon(Icons.Outlined.GroupAdd, contentDescription = "Compartir", tint = Palette.OnDark)
+                                }
+                                IconButton(onClick = viewModel::openEditCounter) {
+                                    Icon(Icons.Outlined.Edit, contentDescription = "Editar contador", tint = Palette.OnDark)
+                                }
+                            } else if (counter != null) {
+                                IconButton(onClick = viewModel::openLeave) {
+                                    Icon(Icons.AutoMirrored.Outlined.ExitToApp, contentDescription = "Dejar de ver", tint = Palette.OnDark)
+                                }
                             }
                         }
                         AccountCard(
@@ -109,7 +132,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
                             onSettings = viewModel::openSettings,
                             onPay = viewModel::openPayment,
                         )
-                        ModeCard(state = state, onMode = viewModel::setMode)
+                        if (state.canEdit) ModeCard(state = state, onMode = viewModel::setMode)
                         Spacer(Modifier.height(10.dp))
                     }
                 },
@@ -226,6 +249,38 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
                 onDelete = viewModel::openDeleteCounter,
             )
         }
+        GarageDialog.Share -> state.counter?.let { counter ->
+            ShareSheet(
+                title = "Compartir «${counter.name}»",
+                members = counter.members,
+                invite = state.invite,
+                busy = state.busy,
+                demoMode = viewModel.demoMode,
+                onSendText = null,
+                onCreateInvite = viewModel::createInvite,
+                onShareInvite = { invite ->
+                    shareText(
+                        context,
+                        "Te comparto «${counter.name}» en Arianna para que veas los días y la cuenta. " +
+                            "Únete con el código ${invite.code}: ${invite.url}",
+                    )
+                },
+                onInvite = viewModel::invite,
+                onRemoveMember = viewModel::removeMember,
+                onDismiss = viewModel::closeDialog,
+                intro = "Con \"Puede editar\" marca días y registra pagos (ej. tu pareja). " +
+                    "Con \"Solo ver\" ve los días y cuánto se debe (ej. la niñera). Solo tú cambias la tarifa.",
+                codeHint = "Quien use el código entra como \"Solo ver\". Para darle edición, invita su correo.",
+                emptyMembers = "Todavía nadie más ve este contador.",
+            )
+        }
+        GarageDialog.Leave -> ConfirmDialog(
+            title = "Dejar de ver «${state.counter?.name.orEmpty()}»",
+            message = "Ya no verás sus días ni la cuenta. ${state.counter?.ownerName.orEmpty()} puede volver a invitarte.",
+            confirmText = "Dejar de ver",
+            onConfirm = { viewModel.leave(onLeft = onBack) },
+            onDismiss = viewModel::closeDialog,
+        )
         GarageDialog.DeleteCounter -> ConfirmDialog(
             title = "Eliminar «${state.counter?.name.orEmpty()}»",
             message = "Se borran todos sus días, cargos y pagos. No se puede deshacer.",
@@ -307,7 +362,7 @@ private fun AccountCard(state: GarageUiState, onSettings: () -> Unit, onPay: () 
                 onClick = onSettings,
                 modifier = Modifier.weight(1f),
             )
-            PillButton(state.copy.payButton, onClick = onPay, icon = Icons.Outlined.Payments, light = true)
+            if (state.canEdit) PillButton(state.copy.payButton, onClick = onPay, icon = Icons.Outlined.Payments, light = true)
         }
     }
 }

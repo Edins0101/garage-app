@@ -48,9 +48,9 @@ data class HomeUiState(
     val load: Load = Load.LOADING,
 ) {
     /** Lo que debo hasta hoy en todos los contadores "yo pago". */
-    private val toPay: Double = counters.filter { it.direction == CounterDirection.PAY }
+    private val toPay: Double = counters.filter { it.mine && it.direction == CounterDirection.PAY }
         .sumOf { it.summary.pending.coerceAtLeast(0.0) }
-    private val toCollect: Double = counters.filter { it.direction == CounterDirection.EARN }
+    private val toCollect: Double = counters.filter { it.mine && it.direction == CounterDirection.EARN }
         .sumOf { it.summary.pending.coerceAtLeast(0.0) }
 
     private val today = LocalDate.now()
@@ -80,7 +80,7 @@ data class HomeUiState(
                     HomeSection.GARAGE -> listOfNotNull(
                         if (toPay > 0.005) {
                             // Con un solo contador se nombra ("$15 de Mi garaje"); con varios, el total.
-                            val single = counters.singleOrNull { it.direction == CounterDirection.PAY }
+                            val single = counters.singleOrNull { it.mine && it.direction == CounterDirection.PAY }
                             "${Money.format(toPay)} " + (single?.let { "de ${it.name}" } ?: "por pagar")
                         } else null,
                         if (toCollect > 0.005) "te deben ${Money.format(toCollect)}" else null,

@@ -151,6 +151,22 @@ class RemoteCountersRepository(private val api: ApiClient) : CountersRepository 
     @Synchronized
     override fun counter(id: String): GarageRepository =
         scoped.getOrPut(id) { RemoteCounterRepository(api, id, counters, onChanged = ::refresh) }
+
+    override suspend fun invite(counter: Counter, email: String, role: MemberRole): SharedMember {
+        val member = api.request(
+            "POST", "/trackers/${enc(counter.id)}/members", api.body(InviteBody(email, role)), SharedMember.serializer(),
+        )!!
+        refresh()
+        return member
+    }
+
+    override suspend fun removeMember(counter: Counter, email: String) {
+        api.request<Unit>("DELETE", "/trackers/${enc(counter.id)}/members/${enc(email)}", null, null)
+        refresh()
+    }
+
+    override suspend fun createInvite(counter: Counter): ShareInvite =
+        api.request("POST", "/trackers/${enc(counter.id)}/invites", null, ShareInvite.serializer())!!
 }
 
 /** Días, cargos y pagos de un contador (/trackers/{id}/…). La tarifa sale de la lista de contadores. */
@@ -341,6 +357,8 @@ class RemoteListsRepository(private val api: ApiClient) : ListsRepository {
 class RemoteSharingRepository(
     private val api: ApiClient,
     private val lists: ListsRepository,
+    /** Para recargar la lista de contadores al unirse a uno con código. */
+    private val counters: CountersRepository? = null,
 ) : SharingRepository {
 
     override suspend fun invite(listId: String, email: String, role: MemberRole): SharedMember {
@@ -362,6 +380,7 @@ class RemoteSharingRepository(
     override suspend fun joinByCode(code: String): JoinResult {
         val result = api.request("POST", "/join", api.body(JoinBody(code)), JoinResult.serializer())!!
         if (result.listId != null) lists.refresh()
+        result.trackerId?.let { counters?.refresh() }
         return result
     }
 }

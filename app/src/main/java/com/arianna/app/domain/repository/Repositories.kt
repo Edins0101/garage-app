@@ -93,6 +93,12 @@ interface CountersRepository {
 
     /** Días, cargos, pagos y tarifa de un contador. */
     fun counter(id: String): GarageRepository
+
+    // ---- compartir (solo el dueño invita; un miembro puede salirse con su correo)
+    suspend fun invite(counter: Counter, email: String, role: MemberRole): SharedMember
+    suspend fun removeMember(counter: Counter, email: String)
+    /** Código para ver el contador: quien lo usa entra como "solo ver". */
+    suspend fun createInvite(counter: Counter): ShareInvite
 }
 
 /** Días, tarifa, cargos y pagos de UN contador (ver [CountersRepository.counter]). */

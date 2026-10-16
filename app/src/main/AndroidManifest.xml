@@ -37,6 +37,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="arianna" android:host="list" />
                 <data android:scheme="arianna" android:host="reminders" />
+                <data android:scheme="arianna" android:host="counter" />
             </intent-filter>
         </activity>
 
