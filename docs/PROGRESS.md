@@ -78,3 +78,4 @@
 
 ### 2026-10-15
 - Primer APK de release firmado (v0.1.0, ~2 MB con R8). La llave de firma quedó en `D:\Projects\garaje-keys` (fuera del repo, hay que respaldarla). Probado en el emulador contra producción: inicio de sesión, inicio, marcar día, crear lista y agregar elemento.
+- Pantallas pequeñas y letra grande: los mosaicos ya no tienen proporción fija y sus textos se achican solos (`TextAutoSize`) en vez de cortarse. Lo mismo en el botón de tarifa del garaje y en las pestañas del acceso. Probado a 720×1280 y con la letra del sistema al 130 %.

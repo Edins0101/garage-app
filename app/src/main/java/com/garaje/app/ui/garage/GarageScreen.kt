@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.DateRange
@@ -292,7 +295,13 @@ private fun InfoChip(icon: ImageVector, text: String, onClick: () -> Unit, modif
     ) {
         Icon(icon, null, tint = Palette.OnDark, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(text, color = Palette.OnDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+        // Se achica si no cabe (pantallas pequeñas o letra del sistema grande) en vez de cortarse.
+        BasicText(
+            text,
+            style = TextStyle(color = Palette.OnDark, fontWeight = FontWeight.SemiBold),
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
+        )
     }
 }
 

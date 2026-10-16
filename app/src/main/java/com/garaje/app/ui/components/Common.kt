@@ -35,7 +35,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -232,7 +234,9 @@ fun MenuTile(
     val shape = RoundedCornerShape(if (compact) 14.dp else 18.dp)
     Column(
         modifier = modifier
-            .aspectRatio(if (compact) 1.05f else 1.25f)
+            // Altura mínima en vez de proporción fija: en pantallas angostas el mosaico crece
+            // hacia abajo y no corta el ícono ni el texto.
+            .heightIn(min = if (compact) 72.dp else 92.dp)
             .shadow(if (compact) 0.dp else 10.dp, shape, ambientColor = Palette.VioletDeep, spotColor = Palette.VioletDeep)
             .clip(shape)
             .background(
@@ -244,7 +248,7 @@ fun MenuTile(
             )
             .then(if (selected) Modifier.border(BorderStroke(2.dp, Palette.OnDark), shape) else Modifier)
             .clickable(onClick = onClick)
-            .padding(8.dp),
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -252,16 +256,20 @@ fun MenuTile(
             icon,
             contentDescription = null,
             tint = Palette.OnDark,
-            modifier = Modifier.size(if (compact) 34.dp else 30.dp),
+            modifier = Modifier.size(if (compact) 28.dp else 30.dp),
         )
         Spacer(Modifier.height(6.dp))
-        Text(
+        // Si la palabra no entra a lo ancho, la letra se achica (hasta 7 sp) en vez de cortarse.
+        BasicText(
             label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = Palette.OnDark,
-            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = Palette.OnDark,
+                textAlign = TextAlign.Center,
+                letterSpacing = 0.4.sp,
+            ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 10.sp, stepSize = 0.5.sp),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

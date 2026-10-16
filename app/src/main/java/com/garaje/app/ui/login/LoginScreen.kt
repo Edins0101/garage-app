@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -384,10 +386,16 @@ private fun ModeTabs(tab: Tab, onChange: (Tab) -> Unit) {
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                // Una sola línea: si no cabe (pantalla pequeña o letra grande), se achica.
+                BasicText(
                     label.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (selected) Palette.OnDark else Palette.OnDarkSoft,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = if (selected) Palette.OnDark else Palette.OnDarkSoft,
+                        textAlign = TextAlign.Center,
+                    ),
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
+                    modifier = Modifier.padding(horizontal = 6.dp),
                 )
             }
         }
