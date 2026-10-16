@@ -1,5 +1,6 @@
 package com.arianna.app.util
 
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.RepeatUnit
 import java.time.LocalDate
@@ -19,6 +20,17 @@ object Recurrence {
         RepeatUnit.WEEK -> due.plusWeeks(every.toLong())
         RepeatUnit.MONTH -> addMonths(due, every.toLong(), anchorDay)
         RepeatUnit.YEAR -> addMonths(due, every * 12L, anchorDay)
+    }
+
+    /**
+     * Siguiente vencimiento si se marca hoy. Con [CountFrom.DONE] se cuenta desde [doneOn];
+     * con [CountFrom.DUE], desde la fecha que vencía. null si es de una sola vez.
+     */
+    fun nextAfterDone(reminder: Reminder, doneOn: LocalDate, anchorDay: Int? = null): LocalDate? {
+        val every = reminder.every ?: return null
+        val unit = reminder.unit ?: return null
+        return if (reminder.countFrom == CountFrom.DONE) advance(doneOn, every, unit, doneOn.dayOfMonth)
+        else advance(reminder.dueDate, every, unit, anchorDay)
     }
 
     /** "Cada mes", "Cada 2 semanas", "Una sola vez". */

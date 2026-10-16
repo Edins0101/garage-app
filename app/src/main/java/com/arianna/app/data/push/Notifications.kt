@@ -31,8 +31,8 @@ object Notifications {
                 .apply { description = "Cuando alguien agrega algo a una lista que compartes" },
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_REMINDERS, "Recordatorios de pagos", NotificationManager.IMPORTANCE_HIGH)
-                .apply { description = "Pagos que están por vencer o vencidos, y cuando alguien marca uno como pagado" },
+            NotificationChannel(CHANNEL_REMINDERS, "Recordatorios", NotificationManager.IMPORTANCE_HIGH)
+                .apply { description = "Pagos y mantenimientos por vencer o vencidos, y cuando alguien marca uno" },
         )
     }
 

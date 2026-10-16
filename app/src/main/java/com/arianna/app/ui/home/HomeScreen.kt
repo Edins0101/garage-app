@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.House
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
@@ -221,7 +222,7 @@ fun HomeScreen(
                     MainMenu(
                         prefs = state.prefs,
                         onOpenGarage = onOpenGarage,
-                        onOpenPayments = { onOpenReminders(ReminderKind.PAYMENTS) },
+                        onOpenReminders = onOpenReminders,
                         onOpenLists = onOpenLists,
                     )
                     Spacer(Modifier.height(28.dp))
@@ -248,9 +249,15 @@ fun HomeScreen(
                                 onToggle = viewModel::toggleSelected,
                                 onOpenGarage = onOpenGarage,
                             )
-                            HomeSection.PAYMENTS -> PaymentsSection(
+                            HomeSection.PAYMENTS -> RemindersSection(
+                                kind = ReminderKind.PAYMENTS,
                                 state = state,
                                 onOpen = { onOpenReminders(ReminderKind.PAYMENTS) },
+                            )
+                            HomeSection.HOME -> RemindersSection(
+                                kind = ReminderKind.HOME,
+                                state = state,
+                                onOpen = { onOpenReminders(ReminderKind.HOME) },
                             )
                             HomeSection.SHOPPING -> ListsSection(
                                 title = "Compras",
@@ -285,6 +292,7 @@ private fun ColumnScope.SectionSkeleton(section: HomeSection) {
         when (section) {
             HomeSection.GARAGE -> "Agenda del garaje"
             HomeSection.PAYMENTS -> "Próximos pagos"
+            HomeSection.HOME -> "Mi hogar"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
         },
@@ -336,14 +344,15 @@ private data class MenuEntry(val icon: ImageVector, val label: String, val onCli
 private fun MainMenu(
     prefs: HomePrefs,
     onOpenGarage: () -> Unit,
-    onOpenPayments: () -> Unit,
+    onOpenReminders: (ReminderKind) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
         when (section) {
             HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage)
-            HomeSection.PAYMENTS -> MenuEntry(Icons.Outlined.Payments, "Pagos", onOpenPayments)
+            HomeSection.PAYMENTS -> MenuEntry(Icons.Outlined.Payments, "Pagos") { onOpenReminders(ReminderKind.PAYMENTS) }
+            HomeSection.HOME -> MenuEntry(Icons.Outlined.House, "Mi hogar") { onOpenReminders(ReminderKind.HOME) }
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
         }
@@ -351,18 +360,21 @@ private fun MainMenu(
     val extras = listOf(
         MenuEntry(Icons.Outlined.Groups, "Compartidas") { onOpenLists(ListsRoute(filter = "shared")) },
         MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
-        MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) },
     )
-    // Filas completas de 3: con las 4 secciones visibles, "Nueva lista" queda dentro de Compras/Tareas.
-    val entries = (main + extras).take(if (main.size >= 4) 6 else main.size + extras.size)
+    // Hasta 6 mosaicos van en filas de 3; si son más, en filas de 4 (se achican los textos).
+    // "Nueva lista" solo entra si completa la última fila (si no, se crea desde Compras o Tareas).
+    val base = main.size + extras.size
+    val columns = if (base > 6) 4 else 3
+    val newList = MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) }
+    val entries = main + extras + listOfNotNull(newList.takeIf { (base + 1) % columns == 0 })
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        entries.chunked(3).forEach { row ->
+        entries.chunked(columns).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { entry ->
                     MenuTile(entry.icon, entry.label, entry.onClick, Modifier.weight(1f))
                 }
                 // Mantiene el ancho de los mosaicos cuando la última fila queda incompleta.
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -454,10 +466,12 @@ private fun GarageAgenda(
     }
 }
 
-/** Los próximos 3 pagos, con su vencimiento; toca para ir a Pagos. */
+/** Los próximos 3 pagos o mantenimientos, con su vencimiento; toca para ir a la sección. */
 @Composable
-private fun ColumnScope.PaymentsSection(state: HomeUiState, onOpen: () -> Unit) {
-    SheetTitle("Próximos pagos") {
+private fun ColumnScope.RemindersSection(kind: ReminderKind, state: HomeUiState, onOpen: () -> Unit) {
+    val payments = kind == ReminderKind.PAYMENTS
+    val upcoming = state.upcoming(kind)
+    SheetTitle(if (payments) "Próximos pagos" else "Mi hogar") {
         Text(
             "VER TODOS",
             style = MaterialTheme.typography.labelLarge,
@@ -469,20 +483,29 @@ private fun ColumnScope.PaymentsSection(state: HomeUiState, onOpen: () -> Unit) 
         )
     }
     Spacer(Modifier.height(14.dp))
-    if (state.upcomingPayments.isEmpty()) {
-        Text("Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan.", color = Palette.InkSoft)
+    if (upcoming.isEmpty()) {
+        Text(
+            if (payments) "Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan."
+            else "Agrega la limpieza del aire, el filtro de la lavadora o la fumigación y te aviso cuándo toca.",
+            color = Palette.InkSoft,
+        )
         Spacer(Modifier.height(10.dp))
-        PillButton("Nuevo pago", onClick = onOpen, light = true, icon = Icons.Outlined.AddCircleOutline)
+        PillButton(
+            if (payments) "Nuevo pago" else "Nuevo recordatorio",
+            onClick = onOpen,
+            light = true,
+            icon = Icons.Outlined.AddCircleOutline,
+        )
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        state.upcomingPayments.forEach { reminder ->
+        upcoming.forEach { reminder ->
             val overdue = reminder.dueDate < LocalDate.now()
             TicketCard(
                 footer = Recurrence.dueLabel(reminder),
                 badge = reminder.amount?.let(Money::format),
                 onClick = onOpen,
-                footerIcon = Icons.Outlined.Payments,
+                footerIcon = if (payments) Icons.Outlined.Payments else Icons.Outlined.House,
             ) {
                 Text(reminder.title, fontWeight = FontWeight.Bold, color = Palette.Ink)
                 Text(

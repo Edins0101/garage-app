@@ -47,7 +47,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.model.ReminderLog
 import com.arianna.app.domain.model.ReminderSpace
 import com.arianna.app.domain.model.RepeatUnit
@@ -132,6 +134,7 @@ private fun DateRow(label: String, date: LocalDate, onChange: (LocalDate) -> Uni
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReminderEditDialog(
+    kind: ReminderKind,
     copy: KindCopy,
     reminder: Reminder?,
     spaces: List<ReminderSpace>,
@@ -151,6 +154,7 @@ fun ReminderEditDialog(
     }
     var notice by rememberSaveable { mutableStateOf(reminder?.notifyDaysBefore ?: 3) }
     var note by rememberSaveable { mutableStateOf(reminder?.note.orEmpty()) }
+    var countFrom by rememberSaveable { mutableStateOf(reminder?.countFrom ?: CountFrom.defaultFor(kind)) }
     var spaceId by rememberSaveable { mutableStateOf(spaces.find { it.ownerId == myId }?.id) }
     val amountValue = Money.parse(amount)
     val amountOk = amount.isBlank() || amountValue != null
@@ -166,6 +170,22 @@ fun ReminderEditDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                if (reminder == null && copy.suggestions.isNotEmpty()) {
+                    Text("Ideas rápidas", fontSize = 12.sp, color = Palette.InkSoft)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        copy.suggestions.forEach { suggestion ->
+                            FilterChip(
+                                selected = title == suggestion.title,
+                                onClick = {
+                                    title = suggestion.title
+                                    repeatIndex = repeatOptions.indexOf(suggestion.every to suggestion.unit)
+                                },
+                                label = { ChipText(suggestion.title) },
+                                colors = chipColors(),
+                            )
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it.take(120) },
@@ -176,7 +196,7 @@ fun ReminderEditDialog(
                     colors = appFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                MoneyField(amount, { amount = it }, "Monto aproximado (opcional)", Modifier.fillMaxWidth())
+                MoneyField(amount, { amount = it }, "${copy.amountLabel} aproximado (opcional)", Modifier.fillMaxWidth())
                 DateRow(if (reminder == null) "Próximo vencimiento" else "Vence", LocalDate.parse(dueText)) {
                     dueText = it.toString()
                 }
@@ -192,6 +212,24 @@ fun ReminderEditDialog(
                             selected = repeatIndex == index,
                             onClick = { repeatIndex = index },
                             label = { ChipText(Recurrence.label(every, unit)) },
+                            colors = chipColors(),
+                        )
+                    }
+                }
+
+                if (repeatOptions.getOrNull(repeatIndex)?.first != null || (repeatIndex == -1 && reminder?.repeats == true)) {
+                    Text("El siguiente se cuenta desde", fontSize = 12.sp, color = Palette.InkSoft)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = countFrom == CountFrom.DUE,
+                            onClick = { countFrom = CountFrom.DUE },
+                            label = { ChipText("La fecha fija") },
+                            colors = chipColors(),
+                        )
+                        FilterChip(
+                            selected = countFrom == CountFrom.DONE,
+                            onClick = { countFrom = CountFrom.DONE },
+                            label = { ChipText("El día que lo marco") },
                             colors = chipColors(),
                         )
                     }
@@ -248,6 +286,7 @@ fun ReminderEditDialog(
                         nextDue = LocalDate.parse(dueText),
                         notifyDaysBefore = notice,
                         note = note,
+                        countFrom = countFrom,
                     )
                     onSave(draft, spaceId)
                 },
@@ -282,7 +321,7 @@ fun ReminderDoneDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Vencimiento del ${Dates.longDay(reminder.dueDate)}.", fontSize = 13.sp)
-                MoneyField(amount, { amount = it }, "Monto", Modifier.fillMaxWidth())
+                MoneyField(amount, { amount = it }, if (reminder.amount == null) "${copy.amountLabel} (opcional)" else copy.amountLabel, Modifier.fillMaxWidth())
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it.take(200) },
@@ -292,8 +331,7 @@ fun ReminderDoneDialog(
                     colors = appFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (reminder.repeats) {
-                    val next = Recurrence.advance(reminder.dueDate, reminder.every!!, reminder.unit!!, null)
+                Recurrence.nextAfterDone(reminder, LocalDate.now())?.let { next ->
                     Text("Después te aviso para el ${Dates.longDay(next)}.", fontSize = 13.sp)
                 }
             }
@@ -382,7 +420,8 @@ fun ReminderDetailSheet(
                     Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "Vencía el ${Dates.shortDay(log.localDueDate).lowercase()}",
+                                if (reminder.countFrom == CountFrom.DONE) "Hecho el ${Dates.shortDay(log.doneDate).lowercase()}"
+                                else "Vencía el ${Dates.shortDay(log.localDueDate).lowercase()}",
                                 color = Palette.Ink,
                                 fontWeight = FontWeight.SemiBold,
                             )

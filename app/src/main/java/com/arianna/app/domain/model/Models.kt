@@ -2,7 +2,9 @@ package com.arianna.app.domain.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 /*
  * Modelos de dominio. Son los mismos JSON que esperamos del backend (docs/API.md),
@@ -194,6 +196,20 @@ enum class ReminderKind {
     }
 }
 
+/** Desde dónde se cuenta el siguiente vencimiento al marcarlo. */
+@Serializable
+enum class CountFrom {
+    /** La fecha que vencía (la luz vence siempre el 15). */
+    @SerialName("due") DUE,
+
+    /** El día que se hizo (limpiar el aire cada 3 meses desde la última limpieza). */
+    @SerialName("done") DONE;
+
+    companion object {
+        fun defaultFor(kind: ReminderKind) = if (kind == ReminderKind.PAYMENTS) DUE else DONE
+    }
+}
+
 @Serializable
 enum class RepeatUnit {
     @SerialName("day") DAY,
@@ -215,6 +231,12 @@ data class ReminderLog(
     val createdAt: String,
 ) {
     val localDueDate: LocalDate get() = LocalDate.parse(dueDate)
+
+    /** Día (en este teléfono) en que se marcó. */
+    val doneDate: LocalDate get() = Instant.parse(createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+
+    /** La fecha que importa mostrar: la que vencía (pagos) o la que se hizo (mantenimientos). */
+    fun shownDate(countFrom: CountFrom): LocalDate = if (countFrom == CountFrom.DONE) doneDate else localDueDate
 }
 
 @Serializable
@@ -230,6 +252,7 @@ data class Reminder(
     val unit: RepeatUnit? = null,
     val nextDue: String,
     val notifyDaysBefore: Int = 2,
+    val countFrom: CountFrom = CountFrom.DUE,
     val note: String? = null,
     /** Una sola vez y ya hecho. */
     val finished: Boolean = false,

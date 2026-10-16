@@ -6,6 +6,7 @@ import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.model.ReminderLog
 import com.arianna.app.domain.model.ReminderSpace
+import com.arianna.app.domain.model.RepeatUnit
 import com.arianna.app.domain.model.ShareInvite
 import com.arianna.app.domain.repository.ReminderDraft
 import com.arianna.app.domain.repository.RemindersRepository
@@ -19,7 +20,12 @@ import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** Textos que cambian según la sección (hoy solo se usa Pagos). */
+/** Atajo para crear un recordatorio común con un toque. */
+data class Suggestion(val title: String, val every: Int, val unit: RepeatUnit)
+
+private fun monthly(vararg titles: String) = titles.map { Suggestion(it, 1, RepeatUnit.MONTH) }
+
+/** Textos que cambian según la sección. */
 data class KindCopy(
     val title: String,
     val overline: String,
@@ -33,6 +39,9 @@ data class KindCopy(
     /** "pago"/"pagos", "recordatorio"/"recordatorios". */
     val one: String = "recordatorio",
     val many: String = "recordatorios",
+    val suggestions: List<Suggestion> = emptyList(),
+    /** Etiqueta del monto: lo que se paga o lo que cuesta el mantenimiento. */
+    val amountLabel: String = "Costo",
 ) {
     companion object {
         fun of(kind: ReminderKind): KindCopy = when (kind) {
@@ -47,7 +56,9 @@ data class KindCopy(
                 empty = "Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan.",
                 shareIntro = "Quien invites verá todos tus pagos y podrá marcarlos como pagados. Ideal para la casa.",
                 one = "pago",
+                amountLabel = "Monto",
                 many = "pagos",
+                suggestions = monthly("Luz", "Agua", "Internet", "Plan del celular", "Tarjeta de crédito", "Arriendo"),
             )
             ReminderKind.HOME -> KindCopy(
                 title = "Mi hogar",
@@ -59,6 +70,16 @@ data class KindCopy(
                 namePlaceholder = "Limpiar el aire, filtro de agua…",
                 empty = "Agrega el mantenimiento del aire, la lavadora o la fumigación y te aviso.",
                 shareIntro = "Quien invites verá y podrá marcar los mantenimientos de la casa.",
+                one = "mantenimiento",
+                many = "mantenimientos",
+                suggestions = listOf(
+                    Suggestion("Limpiar el aire acondicionado", 3, RepeatUnit.MONTH),
+                    Suggestion("Filtro de la lavadora", 1, RepeatUnit.MONTH),
+                    Suggestion("Cambiar el filtro de agua", 6, RepeatUnit.MONTH),
+                    Suggestion("Fumigación", 6, RepeatUnit.MONTH),
+                    Suggestion("Limpiar la refrigeradora", 3, RepeatUnit.MONTH),
+                    Suggestion("Revisar el calefón", 1, RepeatUnit.YEAR),
+                ),
             )
             ReminderKind.CAR -> KindCopy(
                 title = "Mi carro",

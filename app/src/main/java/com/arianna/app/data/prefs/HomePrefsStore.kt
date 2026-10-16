@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 
 /** Secciones que puede mostrar el inicio. */
 @Serializable
-enum class HomeSection { GARAGE, PAYMENTS, SHOPPING, TASKS }
+enum class HomeSection { GARAGE, PAYMENTS, HOME, SHOPPING, TASKS }
 
 /**
  * Cómo quiere el usuario su pantalla de inicio.

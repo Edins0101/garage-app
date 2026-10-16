@@ -61,6 +61,7 @@ import com.arianna.app.ui.theme.Palette
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
 import com.arianna.app.util.Recurrence
+import java.time.YearMonth
 
 @Composable
 fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
@@ -125,6 +126,7 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
 
     when (val dialog = state.dialog) {
         is ReminderDialog.Edit -> ReminderEditDialog(
+            kind = state.kind,
             copy = copy,
             reminder = dialog.reminder,
             spaces = state.writableSpaces,
@@ -218,7 +220,7 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
 private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
     GlassCard {
         Text(
-            if (state.kind == ReminderKind.PAYMENTS) "POR PAGAR ESTE MES" else "PENDIENTES",
+            if (state.kind == ReminderKind.PAYMENTS) "POR PAGAR ESTE MES" else "POR HACER",
             style = MaterialTheme.typography.labelLarge,
             color = Palette.OnDarkSoft,
         )
@@ -228,8 +230,15 @@ private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             SkeletonBox(width = 220.dp, height = 13.dp, onDark = true)
         } else {
+            val dueThisMonth = state.overdue.size + state.soon.size +
+                state.later.count { YearMonth.from(it.dueDate) == YearMonth.from(state.today) }
             Text(
-                Money.format(state.monthTotal),
+                if (state.kind == ReminderKind.PAYMENTS) Money.format(state.monthTotal)
+                else when (dueThisMonth) {
+                    0 -> "Al día ✨"
+                    1 -> "1 este mes"
+                    else -> "$dueThisMonth este mes"
+                },
                 color = Palette.OnDark,
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
@@ -313,7 +322,7 @@ private fun ReminderTicket(reminder: Reminder, state: RemindersUiState, onOpen: 
                 )
                 reminder.lastDone?.let { log ->
                     Text(
-                        "Último: ${Dates.shortDay(log.localDueDate).lowercase()}" +
+                        "Último: ${Dates.shortDay(log.shownDate(reminder.countFrom)).lowercase()}" +
                             (log.amount?.let { " · ${Money.format(it)}" } ?: "") +
                             (log.doneByName?.let { " · $it" } ?: ""),
                         color = Palette.InkSoft,

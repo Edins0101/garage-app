@@ -335,6 +335,7 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
         put("unit", draft.unit?.name?.lowercase())
         put("nextDue", draft.nextDue.toString())
         put("notifyDaysBefore", draft.notifyDaysBefore)
+        put("countFrom", draft.countFrom.name.lowercase())
         put("note", draft.note?.trim()?.takeIf { it.isNotEmpty() })
     }
 

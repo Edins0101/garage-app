@@ -3,6 +3,7 @@ package com.arianna.app.domain.repository
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.model.Reminder
@@ -151,6 +152,7 @@ data class ReminderDraft(
     val nextDue: LocalDate,
     val notifyDaysBefore: Int,
     val note: String?,
+    val countFrom: CountFrom,
 )
 
 /**

@@ -91,8 +91,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         private const val DAILY = "recordatorios-diario"
         private const val NOW = "recordatorios-ahora"
 
-        /** Por ahora la app solo muestra Pagos; Mi hogar y Mi carro se suman aquí. */
-        val ENABLED_KINDS = listOf(ReminderKind.PAYMENTS)
+        /** Secciones que muestra la app (Mi carro se sumará aquí). */
+        val ENABLED_KINDS = listOf(ReminderKind.PAYMENTS, ReminderKind.HOME)
 
         /** Revisión diaria cerca de las 8:00 y una revisión ya mismo (al abrir la app). */
         fun schedule(context: Context) {

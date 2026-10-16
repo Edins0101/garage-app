@@ -1,6 +1,7 @@
 package com.arianna.app
 
 import com.arianna.app.data.reminders.ReminderRules
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.model.RepeatUnit
@@ -64,5 +65,15 @@ class RemindersTest {
         val notice = ReminderRules.notices(listOf(reminder(today)), today).single()
         assertEquals("$32.50 · Toca para marcarlo como pagado", notice.body)
         assertTrue(ReminderRules.notices(listOf(reminder(today, finished = true)), today).isEmpty())
+    }
+
+    @Test
+    fun maintenanceCountsFromTheDayItWasDone() {
+        // Igual que test_home_counts_from_the_day_it_was_done del backend.
+        val aire = reminder(LocalDate.of(2026, 1, 31)).copy(every = 3, countFrom = CountFrom.DONE)
+        assertEquals(LocalDate.of(2026, 5, 20), Recurrence.nextAfterDone(aire, LocalDate.of(2026, 2, 20)))
+        val luz = reminder(LocalDate.of(2026, 1, 31))
+        assertEquals(LocalDate.of(2026, 2, 28), Recurrence.nextAfterDone(luz, LocalDate.of(2026, 2, 20)))
+        assertEquals(null, Recurrence.nextAfterDone(luz.copy(every = null, unit = null), today))
     }
 }

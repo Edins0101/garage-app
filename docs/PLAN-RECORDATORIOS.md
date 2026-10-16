@@ -1,6 +1,6 @@
 # Recordatorios: Pagos, Mi hogar y Mi carro
 
-> Decidido con el usuario el 2026-10-16. Estado: **fase 1 (Pagos) hecha**.
+> Decidido con el usuario el 2026-10-16. Estado: **Pagos y Mi hogar hechos**; falta Mi carro.
 
 ## Idea
 
@@ -18,7 +18,8 @@ antes y se marca como hecho**. Por eso hay un solo motor de *recordatorios* con 
 | Repetición | `every` + `unit` (día, semana, mes, año) o una sola vez | Cubre mensual, bimestral, anual, semanal… |
 | Meses cortos | Se guarda el día original (`anchor_day`): 31 ene → 28 feb → 31 mar | La luz que vence el 31 no se "corre" al 28 para siempre. |
 | Monto | Aproximado en el recordatorio; el real se guarda al marcarlo | La luz cambia cada mes. |
-| Marcar | "Ya pagué" guarda historial (`ReminderLog`) y pasa al siguiente vencimiento desde la fecha que vencía (no desde hoy) | Pagar tarde no corre las fechas siguientes. |
+| Marcar | "Ya pagué" guarda historial (`ReminderLog`) y pasa al siguiente vencimiento | |
+| Contar desde (`countFrom`) | Pagos: desde la fecha que vencía (`due`). Mi hogar y Mi carro: desde el día que se hizo (`done`). Se puede cambiar por recordatorio | Pagar tarde no corre las fechas de la luz; limpiar el aire tarde sí corre la siguiente limpieza. |
 | Deshacer | Borra la última marca y vuelve a ese vencimiento | Por si se tocó sin querer. |
 | Push del servidor | Solo cuando otra persona de la sección agrega o marca algo | Los vencimientos ya los avisa cada teléfono. |
 
@@ -42,8 +43,10 @@ antes y se marca como hecho**. Por eso hay un solo motor de *recordatorios* con 
 
 1. ✅ **Pagos**: crear, editar, eliminar, "Ya pagué" con monto real, deshacer, historial, compartir la
    sección (correo o código), avisos locales, sección "Próximos pagos" en el inicio y en el saludo de Arianna.
-2. ⏳ **Mi hogar**: activar `HOME` en el menú y en `ReminderWorker.ENABLED_KINDS`. Para mantenimientos,
-   contar el siguiente desde la fecha en que se hizo (no desde la que vencía): agregar `countFrom`.
+2. ✅ **Mi hogar**: mantenimientos con `countFrom = done` (el siguiente se cuenta desde el día que se marcó;
+   se puede cambiar a fecha fija). Ideas rápidas para crear con un toque (aire cada 3 meses, filtro de la
+   lavadora cada mes, filtro de agua y fumigación cada 6 meses, refri, calefón). Pagos también tiene ideas
+   (luz, agua, internet, celular, tarjeta, arriendo).
 3. ⏳ **Mi carro**: matrícula por último dígito de placa (calendario de Ecuador), pico y placa,
    mantenimiento por kilometraje (pedir el km al marcar).
 4. Ideas: foto del comprobante (reusar las fotos de Supabase), resumen del mes, recordatorios sugeridos.

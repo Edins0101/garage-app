@@ -8,6 +8,7 @@ import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.ImageRef
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.ImageSource
 import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.model.Reminder
@@ -519,6 +520,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 unit = draft.unit,
                 nextDue = draft.nextDue.toString(),
                 notifyDaysBefore = draft.notifyDaysBefore,
+                countFrom = draft.countFrom,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = now(),
                 updatedAt = now(),
@@ -542,6 +544,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 unit = draft.unit,
                 nextDue = draft.nextDue.toString(),
                 notifyDaysBefore = draft.notifyDaysBefore,
+                countFrom = draft.countFrom,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 finished = if (dateChanged) false else current.finished,
             )
@@ -574,16 +577,20 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 doneByName = user.name,
                 createdAt = now(),
             )
-            val every = current.every
-            val unit = current.unit
-            val next = if (every != null && unit != null) {
-                val due = Recurrence.advance(current.dueDate, every, unit, db.anchorDays[current.id])
+            val today = LocalDate.now()
+            val due = Recurrence.nextAfterDone(current, today, db.anchorDays[current.id])
+            val next = if (due != null) {
                 current.copy(nextDue = due.toString(), lastDone = log)
             } else {
                 current.copy(finished = true, lastDone = log)
             }
+            val anchors = if (due != null && current.countFrom == CountFrom.DONE) {
+                db.anchorDays + (current.id to today.dayOfMonth)
+            } else {
+                db.anchorDays
+            }
             val logs = listOf(log) + db.reminderLogs[current.id].orEmpty()
-            db.replaceReminder(next).copy(reminderLogs = db.reminderLogs + (current.id to logs)) to next
+            db.replaceReminder(next).copy(reminderLogs = db.reminderLogs + (current.id to logs), anchorDays = anchors) to next
         }
 
     override suspend fun undo(reminder: Reminder) {

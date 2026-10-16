@@ -34,15 +34,16 @@ data class HomeUiState(
     val pending: Double = 0.0,
     /** Qué secciones ve el usuario en el inicio y en qué orden. */
     val prefs: HomePrefs = HomePrefs(configured = true),
-    /** Pagos (recordatorios), por fecha de vencimiento. */
-    val reminders: List<Reminder> = emptyList(),
+    /** Recordatorios por sección (Pagos, Mi hogar), por fecha de vencimiento. */
+    val reminders: Map<ReminderKind, List<Reminder>> = emptyMap(),
     val load: Load = Load.LOADING,
 ) {
     private val today = LocalDate.now()
-    private val activePayments = reminders.filterNot { it.finished }
+    private fun active(kind: ReminderKind) = reminders[kind].orEmpty().filterNot { it.finished }
+
     /** Lo que vence en los próximos 7 días o ya venció. */
-    val urgentPayments: List<Reminder> = activePayments.filter { it.dueDate <= today.plusDays(7) }
-    val upcomingPayments: List<Reminder> = activePayments.take(3)
+    fun urgent(kind: ReminderKind): List<Reminder> = active(kind).filter { it.dueDate <= today.plusDays(7) }
+    fun upcoming(kind: ReminderKind): List<Reminder> = active(kind).take(3)
 
     val shoppingLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.SHOPPING }
     val todoLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.TODO }
@@ -62,8 +63,10 @@ data class HomeUiState(
             val parts = prefs.visible.mapNotNull { section ->
                 when (section) {
                     HomeSection.GARAGE -> if (pending > 0.005) "${Money.format(pending)} del garaje" else null
-                    HomeSection.PAYMENTS -> urgentPayments.size.takeIf { it > 0 }
+                    HomeSection.PAYMENTS -> urgent(ReminderKind.PAYMENTS).size.takeIf { it > 0 }
                         ?.let { if (it == 1) "1 pago por vencer" else "$it pagos por vencer" }
+                    HomeSection.HOME -> urgent(ReminderKind.HOME).size.takeIf { it > 0 }
+                        ?.let { if (it == 1) "1 mantenimiento" else "$it mantenimientos" }
                     HomeSection.SHOPPING -> openItems(shoppingLists).takeIf { it > 0 }?.let { "$it por comprar" }
                     HomeSection.TASKS -> openItems(todoLists).takeIf { it > 0 }?.let { if (it == 1) "1 tarea" else "$it tareas" }
                 }
@@ -95,8 +98,12 @@ class HomeViewModel(
             garage.observeDays(),
             lists.observeLists(),
             week,
-            combine(garage.observeSummary(), reminders.observeReminders(ReminderKind.PAYMENTS)) { summary, payments ->
-                summary to payments
+            combine(
+                garage.observeSummary(),
+                reminders.observeReminders(ReminderKind.PAYMENTS),
+                reminders.observeReminders(ReminderKind.HOME),
+            ) { summary, payments, home ->
+                summary to mapOf(ReminderKind.PAYMENTS to payments, ReminderKind.HOME to home)
             },
         ) { (name, homePrefs), days, allLists, (anchor, selected), (summary, payments) ->
             HomeUiState(name, days, allLists, anchor, selected, summary.pending, homePrefs, payments)
