@@ -5,13 +5,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".GarajeApp"
+        android:name=".AriannaApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Garaje">
+        android:theme="@style/Theme.Arianna">
 
         <activity
             android:name=".MainActivity"
@@ -23,25 +23,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Invitaciones a listas: garajeapp://join/CODIGO -->
+            <!-- Invitaciones a listas: arianna://join/CODIGO -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="garajeapp" android:host="join" />
+                <data android:scheme="arianna" android:host="join" />
             </intent-filter>
 
-            <!-- Al tocar una notificación: garajeapp://list/ID abre esa lista. -->
+            <!-- Al tocar una notificación: arianna://list/ID abre esa lista. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="garajeapp" android:host="list" />
+                <data android:scheme="arianna" android:host="list" />
             </intent-filter>
         </activity>
 
         <!-- Recibe las notificaciones push de Firebase. -->
         <service
-            android:name=".data.push.GarajeMessagingService"
+            android:name=".data.push.AriannaMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

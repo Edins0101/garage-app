@@ -1,9 +1,10 @@
-# Garaje (Android nativo)
+# Arianna (Android nativo)
 
-App Android nativa en **Kotlin + Jetpack Compose** con dos funciones:
-un calendario de los días en que el carro está en el garaje y listas de
-compras/tareas que se pueden compartir. Por ahora no tiene backend: usa
-repositorios falsos que guardan los datos en el teléfono.
+App Android nativa en **Kotlin + Jetpack Compose** (paquete `com.arianna.app`). Antes se llamaba
+"Garaje": las carpetas y repos (`garaje-android`, `garaje-backend`, `garaje-keys`) conservan ese nombre.
+Hoy tiene un calendario del garaje con cuenta por pagar y listas de compras/tareas compartidas;
+la idea es crecer hacia pagos recurrentes y otros contadores (ver CONTEXT.md → Nombre y rumbo).
+Backend propio en `D:\Projects\garaje-backend` (FastAPI en Render).
 
 ## Lee primero
 

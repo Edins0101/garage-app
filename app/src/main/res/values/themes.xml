@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Tema base de la ventana. Los colores reales viven en ui/theme (Compose). -->
-    <style name="Theme.Garaje" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Arianna" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/night</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

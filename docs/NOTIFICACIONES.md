@@ -6,7 +6,7 @@
 - Alguien **se une** a una lista con código → "Beto se unió a la lista".
 - Nunca se avisa a quien hizo el cambio. Las listas sin compartir no generan avisos.
 - Varias cosas seguidas en la misma lista **reemplazan** la notificación (tag por lista) en vez de acumularse.
-- Al tocarla se abre la lista (`garajeapp://list/{id}`).
+- Al tocarla se abre la lista (`arianna://list/{id}`).
 
 ## Cómo funciona
 
@@ -16,7 +16,7 @@ Cambio en lista ─▶ backend busca teléfonos de los demás miembros ─▶ FC
 ```
 
 - Backend: `app/push.py` (envío en segundo plano, borra tokens inválidos) y `app/routers/devices.py`.
-- App: `data/push/` → `PushRegistrar` (registro y baja), `GarajeMessagingService` (recibe), `Notifications` (canal y aviso).
+- App: `data/push/` → `PushRegistrar` (registro y baja), `AriannaMessagingService` (recibe), `Notifications` (canal y aviso).
 - Mensajes **solo de datos**: la app arma la notificación también con la app abierta.
 - Android 13+: la app pide el permiso de notificaciones al entrar con sesión.
 - Al cerrar sesión: DELETE /devices/{token} con el token de la sesión que se cierra y `deleteToken()` de Firebase.
@@ -24,7 +24,7 @@ Cambio en lista ─▶ backend busca teléfonos de los demás miembros ─▶ FC
 ## Configuración (una sola vez)
 
 1. **console.firebase.google.com** → Crear proyecto (Analytics no es necesario).
-2. Agregar app **Android** con paquete `com.garaje.app` → descargar `google-services.json` → copiarlo a
+2. Agregar app **Android** con paquete `com.arianna.app` (antes `com.garaje.app`; el proyecto de Firebase puede tener las dos) → descargar `google-services.json` → copiarlo a
    `garaje-android/app/google-services.json` (está en .gitignore). Sin ese archivo la app compila, pero sin notificaciones.
 3. **Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada** → descarga un JSON.
 4. En Render: `PUSH_PROVIDER=fcm` y `FIREBASE_SERVICE_ACCOUNT` = el contenido de ese JSON.

@@ -22,7 +22,7 @@
   - [x] Crear (compras/tareas), renombrar y eliminar (toque largo)
   - [x] Agregar elementos (con cantidad en compras), marcar, eliminar y limpiar los completados
   - [x] Compartir: enviar como texto (real), código de invitación, invitar por correo con rol (fake) y quitar miembros
-  - [x] Unirse con código y deep link `garajeapp://join/CODIGO`
+  - [x] Unirse con código y deep link `arianna://join/CODIGO`
 - [x] Probado en el emulador `Medium_Phone_API_37.0`: navegación, agregar y marcar, generar código, deep link válido e inválido, filtros
 
 ### Pendiente / ideas siguientes
@@ -61,6 +61,13 @@
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
 
+- [x] Nuevo nombre: **Arianna** (paquete `com.arianna.app`, deep links `arianna://`, ícono "A" con estrella, saludo con resumen de pendientes)
+- [ ] Registrar `com.arianna.app` en Firebase y poner el nuevo `google-services.json` en `app/` (sin él no hay notificaciones)
+- [ ] Cambiar `EMAIL_FROM_NAME` a `Arianna` en Render (si estaba puesto como `Garaje`)
+- [ ] Pagos recurrentes con recordatorios
+- [ ] Contadores por día (generalizar el garaje)
+- [ ] Módulo "Mi carro" (matrícula, pico y placa, mantenimiento)
+
 ## Bitácora
 
 ### 2026-10-14
@@ -82,3 +89,6 @@
 - Pantallas pequeñas y letra grande: los mosaicos ya no tienen proporción fija y sus textos se achican solos (`TextAutoSize`) en vez de cortarse. Lo mismo en el botón de tarifa del garaje y en las pestañas del acceso. Probado a 720×1280 y con la letra del sistema al 130 %.
 - Notificaciones push con FCM: backend (tabla devices, envío en segundo plano, 4 tests nuevos, 30 en total) y app (registro, servicio, deep link a la lista, permiso en Android 13+). Probado sin Firebase: la app funciona igual y el deep link abre la lista. Falta probar el envío real cuando exista el proyecto de Firebase.
 - v0.2.0: notificaciones funcionando en producción (Firebase `garage-21c4c`). Probado: Beto agrega «Huevos» a una lista compartida, a Ana le llega la notificación y al tocarla se abre la lista. Los avisos de API obsoleta de firebase-messaging 25.1+ se silenciaron con una nota (migración a FID pendiente).
+
+### 2026-10-16
+- Cambio de nombre a **Arianna** (v0.3.0): paquete y `applicationId` `com.arianna.app`, deep links `arianna://`, ícono nuevo ("A" blanca con estrella dorada, también en la barra de notificaciones), marca en el inicio y el acceso, y saludo de Arianna con el resumen de pendientes según las secciones visibles. Backend: correos con el nombre nuevo y enlaces de invitación `arianna://join/`. El `google-services.json` viejo (paquete `com.garaje.app`) se movió a `D:\Projects\garaje-keys\google-services.garaje-old.json`.

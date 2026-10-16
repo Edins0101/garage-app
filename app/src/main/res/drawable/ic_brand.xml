@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Marca de Arianna: una "A" con una estrella (el hilo que guía, sobre la noche del diseño). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4,20L10.5,4L17,20M6.6,14H14.4" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,1.5Q19.4,4.6 22.5,5Q19.4,5.4 19,8.5Q18.6,5.4 15.5,5Q18.6,4.6 19,1.5Z" />
+</vector>

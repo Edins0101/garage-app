@@ -3,7 +3,7 @@
 ## Paquetes (`app/src/main/java/com/garaje/app`)
 
 ```
-GarajeApp.kt                  # Application: crea el AppContainer
+AriannaApp.kt                 # Application: crea el AppContainer
 MainActivity.kt               # Edge-to-edge, tema y NavHost; reenvía deep links (onNewIntent)
 di/AppContainer.kt            # Inyección manual: elige repositorios fake o remote
 domain/
@@ -27,7 +27,7 @@ ui/
 ├── common/
 │   ├── BaseViewModel.kt      # launchSafely, mensajes al Snackbar, appViewModel {}
 │   └── Dialogs.kt            # TextInputDialog, ConfirmDialog, NewListDialog
-├── navigation/AppNavHost.kt  # Rutas tipadas y deep link garajeapp://join/{code}
+├── navigation/AppNavHost.kt  # Rutas tipadas y deep link arianna://join/{code}
 ├── home/                     # Inicio: saludo, menú, agenda semanal, listas recientes
 ├── garage/                   # Calendario mensual, modos Día/Rango/Nota, notas
 └── lists/                    # Índice con filtros, detalle, compartir, unirse
@@ -71,7 +71,7 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 | `GarageRoute` | Mi garaje | Modos Día/Rango/Nota; mantener presionado un día abre su nota |
 | `ListsRoute(filter, query, create, join)` | Mis listas | Los mosaicos del inicio abren esta ruta con distintos parámetros |
 | `ListDetailRoute(id)` | Detalle | Agregar, marcar, eliminar (toque largo), limpiar, renombrar y compartir |
-| `JoinRoute(code)` | Unirse | También desde el deep link `garajeapp://join/{code}` |
+| `JoinRoute(code)` | Unirse | También desde el deep link `arianna://join/{code}` |
 
 ## Cómo pasar de datos falsos a backend real
 
@@ -92,5 +92,5 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 
 ## Datos de prueba
 
-- Archivo: `/data/data/com.garaje.app/files/fake-db.json`. Para verlo: `adb exec-out run-as com.garaje.app cat files/fake-db.json`.
-- Para volver a los datos de ejemplo, borra los datos de la app (Ajustes → Apps → Garaje → Almacenamiento) o desinstálala.
+- Archivo: `/data/data/com.arianna.app/files/fake-db.json`. Para verlo: `adb exec-out run-as com.arianna.app cat files/fake-db.json`.
+- Para volver a los datos de ejemplo, borra los datos de la app (Ajustes → Apps → Arianna → Almacenamiento) o desinstálala.

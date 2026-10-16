@@ -1,4 +1,4 @@
-# Contexto del proyecto: Garaje
+# Contexto del proyecto: Arianna
 
 > Documento vivo: explica **qué** es la app y **por qué** se tomó cada decisión.
 > El avance del día a día está en [PROGRESS.md](PROGRESS.md).
@@ -13,13 +13,28 @@ App personal para Android con dos funciones principales:
    se marcan como hechos. Se pueden **compartir** con otra persona para que también
    vea y edite lo que falta.
 
+## Nombre y rumbo (2026-10-16)
+
+- La app pasó de **Garaje** a **Arianna** porque dejará de ser solo para el garaje.
+  El nombre viene de Ariadna (el hilo que guía para no perderse). No es una IA: Arianna es la
+  *voz* de la app, en el saludo del inicio ("Hola, Edinson 👋 Soy Arianna, esto tienes pendiente…"),
+  en el acceso y en los estados vacíos. Las notificaciones siguen directas, sin personaje.
+- Función principal: llevar el control de lo que pagas, debes y compras en el día a día,
+  y compartirlo con las personas con quienes lo vives.
+- Ideas en orden de prioridad: 1) pagos recurrentes con recordatorios ("Ya pagué", historial,
+  compartidos); 2) generalizar el garaje a **contadores** por día (niñera, expreso, gimnasio…);
+  3) módulo "Mi carro" (matrícula por dígito de placa, pico y placa, mantenimiento, gastos).
+  Más adelante: precios en las listas, gastos compartidos, widget y, quizá, funciones con IA.
+- Técnico: `applicationId`/paquete `com.arianna.app`, deep links `arianna://join|list`. Al cambiar el
+  identificador, Android la trata como otra app (hay que desinstalar la de `com.garaje.app`).
+
 ## Alcance actual
 
 - **App + backend propio** (`garaje-backend`, FastAPI en Render, Postgres 18). Los datos viven en la nube y se comparten de verdad.
   Los repositorios falsos siguen disponibles (`USE_FAKES=true`) para desarrollar sin internet.
 - Formas de compartir:
   - **Enviar la lista como texto** con la hoja de compartir de Android (WhatsApp, SMS…). Ya funciona de verdad.
-  - **Código de invitación** y deep link `garajeapp://join/CODIGO`. Se simulan en el teléfono.
+  - **Código de invitación** y deep link `arianna://join/CODIGO`. Se simulan en el teléfono.
   - **Invitar por correo** con rol `editor` o `viewer`. Se guarda en el teléfono; no se envía nada.
 - La sincronización real entre dos personas llegará cuando exista el backend.
 
@@ -57,4 +72,4 @@ Está basado en una imagen de referencia que dio el usuario (app de viajes con e
 - **Día de garaje** (`GarageDay`): una fecha `yyyy-MM-dd` marcada, con nota opcional.
 - **Lista** (`Checklist`): de tipo `SHOPPING` (compras, admite cantidad) o `TODO` (tareas).
 - **Miembro** (`SharedMember`): persona con quien se compartió la lista; rol `EDITOR`/`VIEWER`, estado `PENDING`/`ACCEPTED`.
-- **Invitación** (`ShareInvite`): código de 6 caracteres y URL `garajeapp://join/CODIGO`; vence a los 7 días.
+- **Invitación** (`ShareInvite`): código de 6 caracteres y URL `arianna://join/CODIGO`; vence a los 7 días.

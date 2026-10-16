@@ -17,15 +17,15 @@ val keystoreProps = Properties().apply {
 }
 
 android {
-    namespace = "com.garaje.app"
+    namespace = "com.arianna.app"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.garaje.app"
+        applicationId = "com.arianna.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
         buildConfigField("boolean", "USE_FAKES", "false")
