@@ -9,6 +9,12 @@ import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.ImageRef
 import com.arianna.app.domain.model.CountFrom
+import com.arianna.app.domain.model.Counter
+import com.arianna.app.domain.model.CounterDirection
+import com.arianna.app.domain.model.CounterIcon
+import com.arianna.app.domain.repository.CounterDraft
+import com.arianna.app.domain.repository.CountersRepository
+import kotlinx.serialization.Serializable
 import com.arianna.app.domain.model.ImageSource
 import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.model.Reminder
@@ -95,61 +101,100 @@ class FakeAuthRepository(
     }
 }
 
-class FakeGarageRepository(private val store: FakeStore) : GarageRepository {
+/** Contadores en el teléfono. El garaje de versiones anteriores pasa a ser "Mi garaje". */
+class FakeCountersRepository(private val store: FakeStore) : CountersRepository {
+    private val scoped = mutableMapOf<String, FakeCounterRepository>()
 
-    override fun observeDays(): Flow<List<GarageDay>> =
-        store.db.filterNotNull()
-            .map { db -> db.garageDays.sortedBy { it.date } }
-            .onStart { refresh() }
+    override fun observeCounters(): Flow<List<Counter>> = store.db
+        .filterNotNull()
+        .map { db -> db.withCounters().counters.map { it.toCounter() } }
+        .onStart { refresh() }
 
-    override fun observeSettings(): Flow<GarageSettings> = store.db.filterNotNull().map { it.garageSettings }
-
-    override fun observeSummary(): Flow<GarageSummary> = store.db.filterNotNull().map { summaryOf(it) }
-
-    override fun observePayments(): Flow<List<Payment>> =
-        store.db.filterNotNull().map { db -> db.payments.sortedByDescending { it.date } }
-
-    /** Igual que el servidor: rellena los días automáticos pendientes. */
     override suspend fun refresh() {
-        store.load()
-        store.update { db -> backfill(db) to Unit }
+        store.update { db -> db.withCounters().let { migrated -> migrated.copy(counters = migrated.counters.map(::backfill)) } to Unit }
     }
 
-    private fun backfill(db: FakeDb): FakeDb {
-        if (!db.garageSettings.autoMark) return db
-        val today = LocalDate.now()
-        val start = (db.autoFilledUntil?.let(LocalDate::parse) ?: today.minusDays(1)).plusDays(1)
-        if (start.isAfter(today)) return db
-        val existing = db.garageDays.map { it.date }.toSet()
-        val added = Dates.between(start, today)
-            .map { it.toString() }
-            .filterNot { it in existing }
-            .map { newDay(it, db.garageSettings.dailyRate) }
-        return db.copy(garageDays = db.garageDays + added, autoFilledUntil = today.toString())
+    private fun validate(draft: CounterDraft) {
+        if (draft.name.isBlank()) throw DataException("Ponle un nombre", DataException.Kind.INVALID)
     }
 
-    private fun newDay(date: String, rate: Double?) =
-        GarageDay(date, rate = rate, total = rate ?: 0.0, createdAt = now(), updatedAt = now())
-
-    private fun GarageDay.recalculated() = copy(total = (rate ?: 0.0) + charges.sumOf { it.amount }, updatedAt = now())
-
-    private fun FakeDb.withDay(date: LocalDate, change: (GarageDay) -> GarageDay): FakeDb {
-        val key = date.toString()
-        val day = garageDays.find { it.date == key } ?: newDay(key, garageSettings.dailyRate)
-        return copy(garageDays = garageDays.filterNot { it.date == key } + change(day).recalculated())
+    override suspend fun create(draft: CounterDraft): Counter {
+        validate(draft)
+        return store.update { db ->
+            val counter = FakeCounter(
+                id = Ids.create("c-"),
+                name = draft.name.trim(),
+                icon = draft.icon,
+                direction = draft.direction,
+                dailyRate = draft.dailyRate,
+                autoMark = draft.autoMark,
+                autoFilledUntil = if (draft.autoMark) LocalDate.now().minusDays(1).toString() else null,
+                createdAt = now(),
+            ).let(::backfill)
+            val migrated = db.withCounters()
+            migrated.copy(counters = migrated.counters + counter) to counter.toCounter()
+        }
     }
 
-    private fun summaryOf(db: FakeDb): GarageSummary {
+    override suspend fun update(counter: Counter, draft: CounterDraft) {
+        validate(draft)
+        store.update { db ->
+            db.withCounter(counter.id) { current ->
+                current.copy(name = draft.name.trim(), icon = draft.icon, direction = draft.direction)
+                    .withSettings(draft.dailyRate, draft.autoMark)
+            } to Unit
+        }
+    }
+
+    override suspend fun delete(counter: Counter) {
+        store.update { db ->
+            val migrated = db.withCounters()
+            migrated.copy(counters = migrated.counters.filterNot { it.id == counter.id }) to Unit
+        }
+        scoped.remove(counter.id)
+    }
+
+    @Synchronized
+    override fun counter(id: String): GarageRepository = scoped.getOrPut(id) { FakeCounterRepository(store, id) }
+}
+
+/** Contador guardado en el archivo del modo demo, con sus días y pagos. */
+@Serializable
+data class FakeCounter(
+    val id: String,
+    val name: String,
+    val icon: CounterIcon = CounterIcon.OTHER,
+    val direction: CounterDirection = CounterDirection.PAY,
+    val dailyRate: Double? = null,
+    val autoMark: Boolean = false,
+    /** Último día rellenado por el marcado automático. */
+    val autoFilledUntil: String? = null,
+    val createdAt: String,
+    val days: List<GarageDay> = emptyList(),
+    val payments: List<Payment> = emptyList(),
+) {
+    fun toCounter() = Counter(
+        id = id,
+        name = name,
+        icon = icon,
+        direction = direction,
+        dailyRate = dailyRate,
+        autoMark = autoMark,
+        summary = summary(),
+        createdAt = createdAt,
+    )
+
+    fun summary(): GarageSummary {
         val until = LocalDate.now().toString()
-        val days = db.garageDays.filter { it.date <= until }
-        val daysTotal = days.sumOf { it.rate ?: 0.0 }
-        val chargesTotal = days.sumOf { day -> day.charges.sumOf { it.amount } }
-        val paid = db.payments.filter { it.date <= until }.sumOf { it.amount }
+        val counted = days.filter { it.date <= until }
+        val daysTotal = counted.sumOf { it.rate ?: 0.0 }
+        val chargesTotal = counted.sumOf { day -> day.charges.sumOf { it.amount } }
+        val paid = payments.filter { it.date <= until }.sumOf { it.amount }
         return GarageSummary(
             until = until,
-            dailyRate = db.garageSettings.dailyRate,
-            days = days.size,
-            daysWithoutRate = days.count { it.rate == null },
+            dailyRate = dailyRate,
+            days = counted.size,
+            daysWithoutRate = counted.count { it.rate == null },
             daysTotal = daysTotal,
             chargesTotal = chargesTotal,
             total = daysTotal + chargesTotal,
@@ -158,61 +203,152 @@ class FakeGarageRepository(private val store: FakeStore) : GarageRepository {
         )
     }
 
+    /** Igual que el servidor: al cambiar la tarifa se aplica a los días sin tarifa. */
+    fun withSettings(rate: Double?, auto: Boolean?): FakeCounter {
+        var next = backfill(this)
+        if (rate != null) {
+            next = next.copy(
+                dailyRate = rate,
+                days = next.days.map { if (it.rate == null) it.copy(rate = rate).recalculated() else it },
+            )
+        }
+        if (auto != null && auto != next.autoMark) {
+            next = next.copy(
+                autoMark = auto,
+                autoFilledUntil = if (auto) LocalDate.now().minusDays(1).toString() else next.autoFilledUntil,
+            )
+        }
+        return backfill(next)
+    }
+}
+
+private fun newDay(date: String, rate: Double?) =
+    GarageDay(date, rate = rate, total = rate ?: 0.0, createdAt = now(), updatedAt = now())
+
+private fun GarageDay.recalculated() = copy(total = (rate ?: 0.0) + charges.sumOf { it.amount }, updatedAt = now())
+
+/** Igual que el servidor: rellena los días automáticos pendientes (sin repetir los que se quitaron). */
+private fun backfill(counter: FakeCounter): FakeCounter {
+    if (!counter.autoMark) return counter
+    val today = LocalDate.now()
+    val start = (counter.autoFilledUntil?.let(LocalDate::parse) ?: today.minusDays(1)).plusDays(1)
+    if (start.isAfter(today)) return counter
+    val existing = counter.days.map { it.date }.toSet()
+    val added = Dates.between(start, today)
+        .map { it.toString() }
+        .filterNot { it in existing }
+        .map { newDay(it, counter.dailyRate) }
+    return counter.copy(days = counter.days + added, autoFilledUntil = today.toString())
+}
+
+/** La primera vez convierte el garaje de versiones anteriores en el contador "Mi garaje". */
+private fun FakeDb.withCounters(): FakeDb {
+    if (counters.isNotEmpty() || countersMigrated) return this
+    val garage = FakeCounter(
+        id = "c-garage",
+        name = "Mi garaje",
+        icon = CounterIcon.CAR,
+        dailyRate = garageSettings.dailyRate,
+        autoMark = garageSettings.autoMark,
+        autoFilledUntil = autoFilledUntil,
+        createdAt = now(),
+        days = garageDays,
+        payments = payments,
+    )
+    return copy(
+        counters = listOf(garage),
+        countersMigrated = true,
+        garageDays = emptyList(),
+        payments = emptyList(),
+        garageSettings = GarageSettings(),
+        autoFilledUntil = null,
+    )
+}
+
+private fun FakeDb.withCounter(id: String, change: (FakeCounter) -> FakeCounter): FakeDb {
+    val migrated = withCounters()
+    val current = migrated.counters.find { it.id == id }
+        ?: throw DataException("El contador no existe", DataException.Kind.NOT_FOUND)
+    val next = change(current)
+    return migrated.copy(counters = migrated.counters.map { if (it.id == id) next else it })
+}
+
+/** Días, cargos y pagos de un contador del modo demo. */
+class FakeCounterRepository(private val store: FakeStore, private val id: String) : GarageRepository {
+
+    private fun current(db: FakeDb): FakeCounter? = db.withCounters().counters.find { it.id == id }
+
+    override fun observeDays(): Flow<List<GarageDay>> =
+        store.db.filterNotNull()
+            .map { db -> current(db)?.days.orEmpty().sortedBy { it.date } }
+            .onStart { refresh() }
+
+    override fun observeSettings(): Flow<GarageSettings> =
+        store.db.filterNotNull().map { db -> current(db)?.toCounter()?.settings ?: GarageSettings() }
+
+    override fun observeSummary(): Flow<GarageSummary> =
+        store.db.filterNotNull().map { db -> current(db)?.summary() ?: GarageSummary() }
+
+    override fun observePayments(): Flow<List<Payment>> =
+        store.db.filterNotNull().map { db -> current(db)?.payments.orEmpty().sortedByDescending { it.date } }
+
+    override suspend fun refresh() {
+        store.load()
+        store.update { db -> db.withCounter(id, ::backfill) to Unit }
+    }
+
+    private fun FakeCounter.withDay(date: LocalDate, change: (GarageDay) -> GarageDay): FakeCounter {
+        val key = date.toString()
+        val day = days.find { it.date == key } ?: newDay(key, dailyRate)
+        return copy(days = days.filterNot { it.date == key } + change(day).recalculated())
+    }
+
     override suspend fun setDay(date: LocalDate, note: String?): GarageDay = store.update { db ->
-        val next = db.withDay(date) { day -> if (note != null) day.copy(note = note.trim().ifEmpty { null }) else day }
-        next to next.garageDays.first { it.date == date.toString() }
+        val next = db.withCounter(id) { counter ->
+            counter.withDay(date) { day -> if (note != null) day.copy(note = note.trim().ifEmpty { null }) else day }
+        }
+        next to current(next)!!.days.first { it.date == date.toString() }
     }
 
     override suspend fun setDays(dates: List<LocalDate>) = store.update { db ->
-        dates.fold(db) { acc, date -> acc.withDay(date) { it } } to Unit
+        db.withCounter(id) { counter -> dates.fold(counter) { acc, date -> acc.withDay(date) { it } } } to Unit
     }
 
     override suspend fun removeDay(date: LocalDate) = store.update { db ->
-        db.copy(garageDays = db.garageDays.filterNot { it.date == date.toString() }) to Unit
+        db.withCounter(id) { it.copy(days = it.days.filterNot { day -> day.date == date.toString() }) } to Unit
     }
 
     override suspend fun setDayRate(date: LocalDate, rate: Double) = store.update { db ->
-        db.withDay(date) { it.copy(rate = rate) } to Unit
+        db.withCounter(id) { it.withDay(date) { day -> day.copy(rate = rate) } } to Unit
     }
 
     override suspend fun updateSettings(dailyRate: Double?, autoMark: Boolean?) = store.update { db ->
-        var next = backfill(db)
-        if (dailyRate != null) {
-            next = next.copy(
-                garageSettings = next.garageSettings.copy(dailyRate = dailyRate),
-                garageDays = next.garageDays.map { if (it.rate == null) it.copy(rate = dailyRate).recalculated() else it },
-            )
-        }
-        if (autoMark != null && autoMark != next.garageSettings.autoMark) {
-            next = next.copy(
-                garageSettings = next.garageSettings.copy(autoMark = autoMark),
-                autoFilledUntil = if (autoMark) LocalDate.now().minusDays(1).toString() else next.autoFilledUntil,
-            )
-        }
-        backfill(next) to Unit
+        db.withCounter(id) { it.withSettings(dailyRate, autoMark) } to Unit
     }
 
     override suspend fun addCharge(date: LocalDate, description: String, amount: Double) = store.update { db ->
         val charge = GarageCharge(Ids.create("charge-"), description.trim(), amount, createdAt = now())
-        db.withDay(date) { it.copy(charges = it.charges + charge) } to Unit
+        db.withCounter(id) { it.withDay(date) { day -> day.copy(charges = day.charges + charge) } } to Unit
     }
 
     override suspend fun removeCharge(chargeId: String) = store.update { db ->
-        db.copy(
-            garageDays = db.garageDays.map { day ->
-                if (day.charges.none { it.id == chargeId }) day
-                else day.copy(charges = day.charges.filterNot { it.id == chargeId }).recalculated()
-            },
-        ) to Unit
+        db.withCounter(id) { counter ->
+            counter.copy(
+                days = counter.days.map { day ->
+                    if (day.charges.none { it.id == chargeId }) day
+                    else day.copy(charges = day.charges.filterNot { it.id == chargeId }).recalculated()
+                },
+            )
+        } to Unit
     }
 
     override suspend fun addPayment(date: LocalDate, amount: Double, note: String?) = store.update { db ->
         val payment = Payment(Ids.create("pay-"), date.toString(), amount, note?.trim()?.ifEmpty { null }, now())
-        db.copy(payments = db.payments + payment) to Unit
+        db.withCounter(id) { it.copy(payments = it.payments + payment) } to Unit
     }
 
     override suspend fun removePayment(paymentId: String) = store.update { db ->
-        db.copy(payments = db.payments.filterNot { it.id == paymentId }) to Unit
+        db.withCounter(id) { it.copy(payments = it.payments.filterNot { payment -> payment.id == paymentId }) } to Unit
     }
 }
 

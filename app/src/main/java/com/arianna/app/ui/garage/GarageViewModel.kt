@@ -5,7 +5,11 @@ import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.Payment
-import com.arianna.app.domain.repository.GarageRepository
+import com.arianna.app.domain.model.Counter
+import com.arianna.app.domain.model.CounterDirection
+import com.arianna.app.domain.repository.CounterDraft
+import com.arianna.app.domain.repository.CountersRepository
+import com.arianna.app.ui.counters.CounterCopy
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
 import com.arianna.app.util.Dates
@@ -26,6 +30,9 @@ sealed interface GarageDialog {
     data class Day(val date: LocalDate) : GarageDialog
     data object Settings : GarageDialog
     data object Payment : GarageDialog
+    /** Cambiar nombre, ícono o "yo pago / me pagan" del contador. */
+    data object EditCounter : GarageDialog
+    data object DeleteCounter : GarageDialog
 }
 
 data class GarageUiState(
@@ -37,8 +44,11 @@ data class GarageUiState(
     val summary: GarageSummary = GarageSummary(),
     val payments: List<Payment> = emptyList(),
     val dialog: GarageDialog? = null,
+    /** El contador que se está viendo (nombre, ícono, dirección). */
+    val counter: Counter? = null,
     val load: Load = Load.LOADING,
 ) {
+    val copy: CounterCopy = CounterCopy.of(counter?.direction ?: CounterDirection.PAY)
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
     /** Días con nota o cargos extra (llevan un punto en el calendario). */
     val noteDates: Set<LocalDate> =
@@ -62,20 +72,39 @@ private data class LocalState(
     val dialog: GarageDialog? = null,
 )
 
-class GarageViewModel(private val garage: GarageRepository) : BaseViewModel() {
+/** Calendario, tarifa, cargos y pagos de un contador (el garaje es uno más). */
+class GarageViewModel(private val counterId: String, private val counters: CountersRepository) : BaseViewModel() {
 
+    private val garage = counters.counter(counterId)
     private val local = MutableStateFlow(LocalState())
 
     val state: StateFlow<GarageUiState> = loadingState(GarageUiState(), { copy(load = it) }) {
         combine(
-            local,
+            combine(local, counters.observeCounters()) { ui, all -> ui to all.find { it.id == counterId } },
             garage.observeDays(),
             garage.observeSettings(),
             garage.observeSummary(),
             garage.observePayments(),
-        ) { ui, days, settings, summary, payments ->
-            GarageUiState(ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog)
+        ) { (ui, counter), days, settings, summary, payments ->
+            GarageUiState(ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog, counter)
         }
+    }
+
+    fun openEditCounter() = local.update { it.copy(dialog = GarageDialog.EditCounter) }
+    fun openDeleteCounter() = local.update { it.copy(dialog = GarageDialog.DeleteCounter) }
+
+    fun saveCounter(draft: CounterDraft) = launchSafely {
+        val counter = state.value.counter ?: return@launchSafely
+        counters.update(counter, draft)
+        notify("Contador guardado")
+        closeDialog()
+    }
+
+    fun deleteCounter(onDeleted: () -> Unit) = launchSafely {
+        val counter = state.value.counter ?: return@launchSafely
+        counters.delete(counter)
+        notify("«${counter.name}» eliminado")
+        onDeleted()
     }
 
     fun previousMonth() = local.update { it.copy(month = it.month.minusMonths(1)) }
@@ -101,7 +130,7 @@ class GarageViewModel(private val garage: GarageRepository) : BaseViewModel() {
                     launchSafely {
                         val range = Dates.between(start, date)
                         garage.setDays(range)
-                        notify("${range.size} días marcados en el garaje")
+                        notify("${range.size} días marcados en ${state.value.counter?.name ?: "el contador"}")
                     }
                 }
             }
@@ -158,13 +187,13 @@ class GarageViewModel(private val garage: GarageRepository) : BaseViewModel() {
         val amount = Money.parse(amountText)?.takeIf { it > 0 }
             ?: return@launchSafely notify("Escribe un monto mayor a 0")
         garage.addPayment(date, amount, note)
-        notify("Pago de ${Money.format(amount)} registrado")
+        notify("${state.value.copy.paymentNoun} de ${Money.format(amount)} registrado")
         closeDialog()
     }
 
     fun removePayment(payment: Payment) = launchSafely {
         garage.removePayment(payment.id)
-        notify("Pago de ${Money.format(payment.amount)} eliminado")
+        notify("${state.value.copy.paymentNoun} de ${Money.format(payment.amount)} eliminado")
     }
 
     private inline fun MutableStateFlow<LocalState>.update(transform: (LocalState) -> LocalState) {

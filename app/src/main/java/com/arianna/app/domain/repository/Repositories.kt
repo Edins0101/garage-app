@@ -4,6 +4,9 @@ import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.model.CountFrom
+import com.arianna.app.domain.model.Counter
+import com.arianna.app.domain.model.CounterDirection
+import com.arianna.app.domain.model.CounterIcon
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.model.Reminder
@@ -66,6 +69,33 @@ interface AuthRepository {
     suspend fun currentUser(): User
 }
 
+/** Lo que el usuario llena al crear o editar un contador. */
+data class CounterDraft(
+    val name: String,
+    val icon: CounterIcon,
+    val direction: CounterDirection,
+    val dailyRate: Double?,
+    val autoMark: Boolean,
+)
+
+/**
+ * Contadores por día (garaje, niñera, expreso, días trabajados…). Cada uno tiene su calendario,
+ * tarifa, cargos y pagos: se manejan con el [GarageRepository] que devuelve [counter].
+ */
+interface CountersRepository {
+    /** Mis contadores con la cuenta hasta hoy, en el orden en que se crearon. */
+    fun observeCounters(): Flow<List<Counter>>
+    suspend fun refresh()
+
+    suspend fun create(draft: CounterDraft): Counter
+    suspend fun update(counter: Counter, draft: CounterDraft)
+    suspend fun delete(counter: Counter)
+
+    /** Días, cargos, pagos y tarifa de un contador. */
+    fun counter(id: String): GarageRepository
+}
+
+/** Días, tarifa, cargos y pagos de UN contador (ver [CountersRepository.counter]). */
 interface GarageRepository {
     fun observeDays(): Flow<List<GarageDay>>
     fun observeSettings(): Flow<GarageSettings>

@@ -58,8 +58,8 @@ private val HomeSection.info: SectionInfo
     get() = when (this) {
         HomeSection.GARAGE -> SectionInfo(
             Icons.Outlined.CalendarMonth,
-            "Garaje",
-            "Días del carro en el garaje y cuánto debes pagar",
+            "Contadores",
+            "Días del garaje, la niñera o el expreso y cuánto debes hasta hoy",
         )
         HomeSection.REMINDERS -> SectionInfo(
             Icons.Outlined.NotificationsActive,

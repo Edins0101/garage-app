@@ -77,6 +77,12 @@ import com.arianna.app.data.prefs.HomePrefs
 import com.arianna.app.data.prefs.HomeSection
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistKind
+import com.arianna.app.domain.model.CounterDirection
+import com.arianna.app.domain.model.CounterIcon
+import com.arianna.app.ui.counters.counterIcon
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.util.Recurrence
 import com.arianna.app.ui.common.CollectMessages
@@ -106,13 +112,15 @@ import java.time.YearMonth
 
 @Composable
 fun HomeScreen(
-    onOpenGarage: () -> Unit,
+    /** Lista de contadores por día. */
+    onOpenCounters: () -> Unit,
+    onOpenCounter: (String) -> Unit,
     /** null = todas las categorías. */
     onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
 ) {
-    val viewModel = appViewModel { HomeViewModel(it.auth, it.garage, it.lists, it.reminders, it.homePrefs) }
+    val viewModel = appViewModel { HomeViewModel(it.auth, it.counters, it.lists, it.reminders, it.homePrefs) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -223,7 +231,7 @@ fun HomeScreen(
                     Spacer(Modifier.height(18.dp))
                     MainMenu(
                         prefs = state.prefs,
-                        onOpenGarage = onOpenGarage,
+                        onOpenCounters = onOpenCounters,
                         onOpenReminders = onOpenReminders,
                         onOpenLists = onOpenLists,
                     )
@@ -249,7 +257,9 @@ fun HomeScreen(
                                 onNext = viewModel::nextWeek,
                                 onSelect = viewModel::select,
                                 onToggle = viewModel::toggleSelected,
-                                onOpenGarage = onOpenGarage,
+                                onChooseCounter = viewModel::chooseCounter,
+                                onOpenCounter = onOpenCounter,
+                                onOpenCounters = onOpenCounters,
                             )
                             HomeSection.REMINDERS -> RemindersSection(
                                 state = state,
@@ -286,7 +296,7 @@ fun HomeScreen(
 private fun ColumnScope.SectionSkeleton(section: HomeSection) {
     SheetTitle(
         when (section) {
-            HomeSection.GARAGE -> "Agenda del garaje"
+            HomeSection.GARAGE -> "Contadores"
             HomeSection.REMINDERS -> "Recordatorios"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
@@ -338,14 +348,14 @@ private data class MenuEntry(val icon: ImageVector, val label: String, val onCli
 @Composable
 private fun MainMenu(
     prefs: HomePrefs,
-    onOpenGarage: () -> Unit,
+    onOpenCounters: () -> Unit,
     onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
         when (section) {
-            HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage)
+            HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Contadores", onOpenCounters)
             HomeSection.REMINDERS -> MenuEntry(Icons.Outlined.NotificationsActive, "Recordatorios") { onOpenReminders(null) }
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
@@ -381,15 +391,53 @@ private fun GarageAgenda(
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
     onToggle: () -> Unit,
-    onOpenGarage: () -> Unit,
+    onChooseCounter: (String) -> Unit,
+    onOpenCounter: (String) -> Unit,
+    onOpenCounters: () -> Unit,
 ) {
-    SheetTitle("Agenda del garaje") {
+    val counter = state.counter
+    if (counter == null) {
+        SheetTitle("Contadores")
+        Spacer(Modifier.height(14.dp))
         Text(
-            if (state.pending > 0) "Pendiente ${Money.format(state.pending)}" else "${state.daysThisMonth} días este mes",
+            "Marca los días del garaje, la niñera o el expreso y te digo cuánto debes hasta hoy.",
+            color = Palette.InkSoft,
+        )
+        Spacer(Modifier.height(10.dp))
+        PillButton("Nuevo contador", onClick = onOpenCounters, light = true, icon = Icons.Outlined.AddCircleOutline)
+        return
+    }
+    val earn = counter.direction == CounterDirection.EARN
+    SheetTitle(counter.name) {
+        Text(
+            when {
+                state.pending > 0 -> (if (earn) "Te deben " else "Pendiente ") + Money.format(state.pending)
+                else -> "${state.daysThisMonth} días este mes"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = Palette.Violet,
-            modifier = Modifier.clickable(onClick = onOpenGarage),
+            modifier = Modifier.clickable { onOpenCounter(counter.id) },
         )
+    }
+    if (state.counters.size > 1) {
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.counters.forEach { option ->
+                FilterChip(
+                    selected = option.id == counter.id,
+                    onClick = { onChooseCounter(option.id) },
+                    label = { Text(option.name, style = MaterialTheme.typography.bodyMedium) },
+                    leadingIcon = { Icon(counterIcon(option.icon), null, modifier = Modifier.size(18.dp)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Palette.Violet,
+                        selectedLabelColor = Palette.OnDark,
+                        selectedLeadingIconColor = Palette.OnDark,
+                        labelColor = Palette.Ink,
+                        iconColor = Palette.Violet,
+                    ),
+                )
+            }
+        }
     }
     PeriodHeader(
         label = Dates.monthName(YearMonth.from(state.weekAnchor)),
@@ -427,9 +475,11 @@ private fun GarageAgenda(
             )
             Text(
                 when {
-                    day == null -> "Libre: el carro no está en el garaje"
-                    day.note != null -> "En el garaje · ${day.note}"
-                    else -> "En el garaje"
+                    // El garaje conserva sus textos; los demás contadores, genéricos.
+                    counter.icon == CounterIcon.CAR && day == null -> "Libre: el carro no está en el garaje"
+                    counter.icon == CounterIcon.CAR -> "En el garaje" + (day?.note?.let { " · $it" } ?: "")
+                    day == null -> "Sin marcar"
+                    else -> "Marcado" + (day.note?.let { " · $it" } ?: "")
                 },
                 color = Palette.OnDarkSoft,
                 fontSize = 13.sp,

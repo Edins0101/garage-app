@@ -66,7 +66,8 @@
 - [ ] Cambiar `EMAIL_FROM_NAME` a `Arianna` en Render (si estaba puesto como `Garaje`)
 - [x] Pagos recurrentes con recordatorios ([PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md)): sección compartible, "Ya pagué", historial, deshacer y avisos desde el teléfono
 - [x] Mi hogar (mantenimientos: aire, lavadora, fumigación) sobre el mismo motor de recordatorios
-- [ ] Contadores por día (generalizar el garaje)
+- [x] Contadores por día: el garaje es un contador más; niñera, expreso, gimnasio, días trabajados (me pagan)
+- [ ] Compartir un contador (ej. que la niñera vea sus días)
 - [x] Módulo "Mi carro" (matrícula por placa, mantenimiento por fecha o km). Pico y placa: no (ver PLAN-RECORDATORIOS)
 - [x] Una sola pantalla "Recordatorios" con filtros y categoría "Otros"
 
@@ -101,3 +102,4 @@
 - v0.5.0 probado en producción con el APK release: "Limpiar el aire" cada 3 meses que vencía el 10 oct, marcado el 16 oct → siguiente 16 ene. Usuario de prueba borrado.
 - Recordatorios + Mi carro (v0.6.0): Pagos y Mi hogar pasan a una sola pantalla "Recordatorios" con filtros (Todos, Pagos, Mi hogar, Mi carro, Otros) y un solo mosaico en el inicio (las preferencias viejas se migran solas). Mi carro: matrícula por último dígito de la placa, `everyKm` y `odometer` (migración `e7a91b3c5d02`), ideas rápidas por categoría, "Otros" para cumpleaños y citas. El backend acepta `kind` opcional y la app trae todo en una consulta. 40 tests en el backend, 5 en la app. Probado en el emulador con datos falsos: placa 0 → matrícula 1 nov; aceite marcado a los 45.300 km → "16 ene o a los 50.300 km".
 - v0.6.0 probado en producción con el APK release: las 4 secciones se crean solas, la pantalla Recordatorios muestra Mi carro y Otros juntos con su categoría. Usuario de prueba borrado.
+- Contadores por día: tabla `trackers` (migración `a3f5c8d1e947`, probada con datos en Postgres local y aplicada en producción: el garaje existente quedó como "Mi garaje"). Rutas `/trackers/{id}/…`; las `/garage*` siguen sobre el primer contador. App: pantalla Contadores (total por pagar y te deben), crear/editar/eliminar con ideas rápidas e íconos, "yo pago" o "me pagan" (textos Te deben / Cobré / Cobros), el calendario del garaje sirve para cualquier contador y el inicio muestra la agenda con selector de contador. El modo demo convierte el garaje anterior en "Mi garaje". 43 tests en el backend. Probado en el emulador (demo) y contra producción con un usuario temporal ("Días trabajados" 2 días × $3,50 = $7).

@@ -19,7 +19,43 @@ data class User(
     val email: String,
 )
 
-/** Un día en el que el carro está en el garaje. */
+/** Ícono de un contador por día. */
+@Serializable
+enum class CounterIcon {
+    @SerialName("car") CAR,
+    @SerialName("child") CHILD,
+    @SerialName("bus") BUS,
+    @SerialName("gym") GYM,
+    @SerialName("work") WORK,
+    @SerialName("pet") PET,
+    @SerialName("home") HOME,
+    @SerialName("other") OTHER,
+}
+
+/** PAY = yo pago (garaje, niñera); EARN = me pagan (días trabajados). */
+@Serializable
+enum class CounterDirection {
+    @SerialName("pay") PAY,
+    @SerialName("earn") EARN,
+}
+
+/** Contador por día (el garaje es uno más) con su cuenta hasta hoy. */
+@Serializable
+data class Counter(
+    val id: String,
+    val name: String,
+    val icon: CounterIcon = CounterIcon.OTHER,
+    val direction: CounterDirection = CounterDirection.PAY,
+    val dailyRate: Double? = null,
+    val autoMark: Boolean = false,
+    val today: String = LocalDate.now().toString(),
+    val summary: GarageSummary = GarageSummary(),
+    val createdAt: String,
+) {
+    val settings: GarageSettings get() = GarageSettings(dailyRate, autoMark, today)
+}
+
+/** Un día marcado en un contador (ej. el carro en el garaje). */
 @Serializable
 data class GarageDay(
     val date: String,

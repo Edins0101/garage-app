@@ -44,7 +44,31 @@ Al iniciar sesión, las invitaciones por correo pendientes a ese email se acepta
 | PUT | `/garage-days/{date}` | `{ note?: string }` | `GarageDay` (crea o actualiza) |
 | DELETE | `/garage-days/{date}` | — | 204 |
 
-## Tarifa, cargos y pagos del garaje
+## Contadores por día
+
+Cada usuario puede tener varios contadores (el garaje, la niñera, el expreso, días trabajados…). Cada uno
+tiene su tarifa, marcado automático, días, cargos y pagos; `direction` = `pay` (yo pago) o `earn` (me pagan).
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/trackers` | — | `Counter[]` con `summary` (cuenta hasta hoy), en orden de creación |
+| POST | `/trackers` | `{ name, icon, direction, dailyRate?, autoMark? }` | `Counter` (201) |
+| PATCH | `/trackers/{id}` | mismos campos, opcionales (+ `applyToDaysWithoutRate`) | `Counter` |
+| DELETE | `/trackers/{id}` | — | 204 (borra sus días, cargos y pagos) |
+| GET | `/trackers/{id}/summary` | — | `GarageSummary` |
+| GET | `/trackers/{id}/days?from&to` | — | `GarageDay[]` |
+| PUT / DELETE | `/trackers/{id}/days/{date}` | `{ note?, rate? }` | `GarageDay` / 204 |
+| POST | `/trackers/{id}/days/{date}/charges` | `{ description, amount }` | `GarageCharge` |
+| DELETE | `/trackers/{id}/charges/{chargeId}` | — | 204 |
+| GET / POST | `/trackers/{id}/payments` | `{ date, amount, note? }` | `Payment[]` / `Payment` |
+| DELETE | `/trackers/{id}/payments/{paymentId}` | — | 204 |
+
+- `icon` = `car` \| `child` \| `bus` \| `gym` \| `work` \| `pet` \| `home` \| `other`.
+- Solo el dueño ve sus contadores (sin acceso: 404). Compartirlos queda pendiente.
+- Las rutas de abajo (`/garage*`, `/garage-days`, `/payments`) son de versiones anteriores de la app y
+  trabajan sobre el **primer** contador (si no hay, crean "Mi garaje").
+
+## Tarifa, cargos y pagos del garaje (rutas anteriores: primer contador)
 
 Montos en dólares: se envían como texto con 2 decimales (`"5.50"`) y se devuelven como número.
 "Hoy" se calcula en `America/Guayaquil` (`APP_TIMEZONE`).

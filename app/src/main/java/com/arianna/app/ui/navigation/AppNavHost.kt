@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
+import com.arianna.app.ui.counters.CountersScreen
 import com.arianna.app.ui.garage.GarageScreen
 import com.arianna.app.ui.home.HomeScreen
 import com.arianna.app.ui.lists.JoinScreen
@@ -20,8 +21,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 object HomeRoute
 
+/** Lista de contadores por día. */
 @Serializable
-object GarageRoute
+object CountersRoute
+
+/** Calendario y cuenta de un contador (el garaje es uno más). */
+@Serializable
+data class CounterRoute(val id: String)
 
 /** filter: "shopping" | "todo" | "shared" | null (todas). */
 @Serializable
@@ -53,14 +59,21 @@ fun AppNavHost(navController: NavHostController) {
     ) {
         composable<HomeRoute> {
             HomeScreen(
-                onOpenGarage = { navController.navigate(GarageRoute) },
+                onOpenCounters = { navController.navigate(CountersRoute) },
+                onOpenCounter = { id -> navController.navigate(CounterRoute(id)) },
                 onOpenReminders = { kind -> navController.navigate(RemindersRoute(kind?.apiName ?: "all")) },
                 onOpenLists = { route -> navController.navigate(route) },
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
             )
         }
-        composable<GarageRoute> {
-            GarageScreen(onBack = { navController.popBackStack() })
+        composable<CountersRoute> {
+            CountersScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { id -> navController.navigate(CounterRoute(id)) },
+            )
+        }
+        composable<CounterRoute> { entry ->
+            GarageScreen(counterId = entry.toRoute<CounterRoute>().id, onBack = { navController.popBackStack() })
         }
         composable<RemindersRoute>(
             deepLinks = listOf(navDeepLink<RemindersRoute>(basePath = "arianna://reminders")),

@@ -3,14 +3,14 @@ package com.arianna.app.di
 import android.content.Context
 import com.arianna.app.BuildConfig
 import com.arianna.app.data.fake.FakeAuthRepository
-import com.arianna.app.data.fake.FakeGarageRepository
+import com.arianna.app.data.fake.FakeCountersRepository
 import com.arianna.app.data.fake.FakeListsRepository
 import com.arianna.app.data.fake.FakeRemindersRepository
 import com.arianna.app.data.fake.FakeSharingRepository
 import com.arianna.app.data.fake.FakeStore
 import com.arianna.app.data.remote.ApiClient
 import com.arianna.app.data.remote.RemoteAuthRepository
-import com.arianna.app.data.remote.RemoteGarageRepository
+import com.arianna.app.data.remote.RemoteCountersRepository
 import com.arianna.app.data.remote.RemoteListsRepository
 import com.arianna.app.data.remote.RemoteRemindersRepository
 import com.arianna.app.data.remote.RemoteSharingRepository
@@ -21,7 +21,7 @@ import com.arianna.app.data.reminders.ReminderWorker
 import com.arianna.app.data.prefs.HomePrefsStore
 import com.arianna.app.data.session.SessionStore
 import com.arianna.app.domain.repository.AuthRepository
-import com.arianna.app.domain.repository.GarageRepository
+import com.arianna.app.domain.repository.CountersRepository
 import com.arianna.app.domain.repository.ListsRepository
 import com.arianna.app.domain.repository.RemindersRepository
 import com.arianna.app.domain.repository.SharingRepository
@@ -49,7 +49,7 @@ class AppContainer(context: Context) {
 
     /** Repositorios de datos de la sesión actual; se recrean al cerrar sesión. */
     private class DataRepositories(
-        val garage: GarageRepository,
+        val counters: CountersRepository,
         val lists: ListsRepository,
         val sharing: SharingRepository,
         val reminders: RemindersRepository,
@@ -58,7 +58,7 @@ class AppContainer(context: Context) {
     private fun createData(): DataRepositories =
         if (useFakes) {
             DataRepositories(
-                FakeGarageRepository(fakeStore),
+                FakeCountersRepository(fakeStore),
                 FakeListsRepository(fakeStore, File(appContext.filesDir, "fake-images")),
                 FakeSharingRepository(fakeStore),
                 FakeRemindersRepository(fakeStore),
@@ -66,7 +66,7 @@ class AppContainer(context: Context) {
         } else {
             val lists = RemoteListsRepository(api)
             DataRepositories(
-                RemoteGarageRepository(api),
+                RemoteCountersRepository(api),
                 lists,
                 RemoteSharingRepository(api, lists),
                 RemoteRemindersRepository(api),
@@ -95,7 +95,7 @@ class AppContainer(context: Context) {
         }
     }
 
-    val garage: GarageRepository get() = data.garage
+    val counters: CountersRepository get() = data.counters
     val lists: ListsRepository get() = data.lists
     val sharing: SharingRepository get() = data.sharing
     val reminders: RemindersRepository get() = data.reminders

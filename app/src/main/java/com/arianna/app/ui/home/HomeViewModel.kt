@@ -11,7 +11,13 @@ import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.repository.RemindersRepository
 import com.arianna.app.domain.repository.AuthRepository
-import com.arianna.app.domain.repository.GarageRepository
+import com.arianna.app.domain.repository.CountersRepository
+import com.arianna.app.domain.model.Counter
+import com.arianna.app.domain.model.CounterDirection
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import com.arianna.app.domain.repository.ListsRepository
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
@@ -30,14 +36,23 @@ data class HomeUiState(
     /** Cualquier día de la semana que se muestra en la agenda. */
     val weekAnchor: LocalDate = LocalDate.now(),
     val selected: LocalDate = LocalDate.now(),
-    /** Monto pendiente de pagar al garaje hasta hoy. */
+    /** Lo pendiente hasta hoy del contador que se ve en la agenda. */
     val pending: Double = 0.0,
     /** Qué secciones ve el usuario en el inicio y en qué orden. */
     val prefs: HomePrefs = HomePrefs(configured = true),
     /** Recordatorios de todas las categorías, por fecha de vencimiento. */
     val reminders: List<Reminder> = emptyList(),
+    /** Contadores por día; la agenda muestra [counter]. */
+    val counters: List<Counter> = emptyList(),
+    val counter: Counter? = null,
     val load: Load = Load.LOADING,
 ) {
+    /** Lo que debo hasta hoy en todos los contadores "yo pago". */
+    private val toPay: Double = counters.filter { it.direction == CounterDirection.PAY }
+        .sumOf { it.summary.pending.coerceAtLeast(0.0) }
+    private val toCollect: Double = counters.filter { it.direction == CounterDirection.EARN }
+        .sumOf { it.summary.pending.coerceAtLeast(0.0) }
+
     private val today = LocalDate.now()
     private val activeReminders = reminders.filterNot { it.finished }
 
@@ -62,7 +77,14 @@ data class HomeUiState(
         Load.READY -> {
             val parts = prefs.visible.mapNotNull { section ->
                 when (section) {
-                    HomeSection.GARAGE -> if (pending > 0.005) "${Money.format(pending)} del garaje" else null
+                    HomeSection.GARAGE -> listOfNotNull(
+                        if (toPay > 0.005) {
+                            // Con un solo contador se nombra ("$15 de Mi garaje"); con varios, el total.
+                            val single = counters.singleOrNull { it.direction == CounterDirection.PAY }
+                            "${Money.format(toPay)} " + (single?.let { "de ${it.name}" } ?: "por pagar")
+                        } else null,
+                        if (toCollect > 0.005) "te deben ${Money.format(toCollect)}" else null,
+                    ).joinToString(" · ").ifEmpty { null }
                     HomeSection.REMINDERS -> {
                         val payments = urgent.count { it.kind == ReminderKind.PAYMENTS }
                         val others = urgent.size - payments
@@ -85,7 +107,7 @@ private fun openItems(lists: List<Checklist>): Int = lists.sumOf { list -> list.
 
 class HomeViewModel(
     private val auth: AuthRepository,
-    private val garage: GarageRepository,
+    private val counters: CountersRepository,
     lists: ListsRepository,
     reminders: RemindersRepository,
     private val prefsStore: HomePrefsStore,
@@ -95,17 +117,43 @@ class HomeViewModel(
     private val prefs = prefsStore.observe(userId)
     private val userName = MutableStateFlow("")
     private val week = MutableStateFlow(LocalDate.now() to LocalDate.now())
+    /** Contador elegido en la agenda (null = el primero). */
+    private val chosenCounter = MutableStateFlow<String?>(null)
+
+    /** Lista de contadores + el de la agenda con sus días. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val agenda = combine(counters.observeCounters(), chosenCounter) { all, chosen ->
+        all to (all.find { it.id == chosen } ?: all.firstOrNull())
+    }.flatMapLatest { (all, counter) ->
+        if (counter == null) flowOf(Triple(all, null, emptyList()))
+        else counters.counter(counter.id).observeDays().map { days -> Triple(all, counter, days) }
+    }
 
     val state: StateFlow<HomeUiState> = loadingState(HomeUiState(), { copy(load = it) }) {
         combine(
             combine(userName, prefs) { name, homePrefs -> name to homePrefs },
-            garage.observeDays(),
+            agenda,
             lists.observeLists(),
             week,
-            combine(garage.observeSummary(), reminders.observeReminders()) { summary, all -> summary to all },
-        ) { (name, homePrefs), days, allLists, (anchor, selected), (summary, payments) ->
-            HomeUiState(name, days, allLists, anchor, selected, summary.pending, homePrefs, payments)
+            reminders.observeReminders(),
+        ) { (name, homePrefs), (all, counter, days), allLists, (anchor, selected), allReminders ->
+            HomeUiState(
+                userName = name,
+                days = days,
+                lists = allLists,
+                weekAnchor = anchor,
+                selected = selected,
+                pending = counter?.summary?.pending ?: 0.0,
+                prefs = homePrefs,
+                reminders = allReminders,
+                counters = all,
+                counter = counter,
+            )
         }
+    }
+
+    fun chooseCounter(id: String) {
+        chosenCounter.value = id
     }
 
     init {
@@ -133,7 +181,9 @@ class HomeViewModel(
 
     /** Marca o desmarca el día seleccionado. */
     fun toggleSelected() = launchSafely {
+        val counter = state.value.counter ?: return@launchSafely
         val date = state.value.selected
-        if (state.value.selectedDay != null) garage.removeDay(date) else garage.setDay(date)
+        val repository = counters.counter(counter.id)
+        if (state.value.selectedDay != null) repository.removeDay(date) else repository.setDay(date)
     }
 }

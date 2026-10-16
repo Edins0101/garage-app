@@ -24,12 +24,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -64,14 +66,16 @@ import com.arianna.app.ui.components.ScrollingSheetLayout
 import com.arianna.app.ui.components.SheetTitle
 import com.arianna.app.ui.components.TicketCard
 import com.arianna.app.ui.components.TopBar
+import com.arianna.app.ui.counters.CounterDialog
 import com.arianna.app.ui.theme.Palette
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
 import java.time.LocalDate
 
+/** Calendario y cuenta de un contador por día (el garaje es uno más). */
 @Composable
-fun GarageScreen(onBack: () -> Unit) {
-    val viewModel = appViewModel { GarageViewModel(it.garage) }
+fun GarageScreen(counterId: String, onBack: () -> Unit) {
+    val viewModel = appViewModel(key = "counter-$counterId") { GarageViewModel(counterId, it.counters) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -91,7 +95,15 @@ fun GarageScreen(onBack: () -> Unit) {
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        TopBar(title = "Mi garaje", overline = "Calendario y cuenta", onBack = onBack)
+                        TopBar(
+                            title = state.counter?.name ?: "Contador",
+                            overline = "Contador por día",
+                            onBack = onBack,
+                        ) {
+                            IconButton(onClick = viewModel::openEditCounter, enabled = state.counter != null) {
+                                Icon(Icons.Outlined.Edit, contentDescription = "Editar contador", tint = Palette.OnDark)
+                            }
+                        }
                         AccountCard(
                             state = state,
                             onSettings = viewModel::openSettings,
@@ -142,7 +154,7 @@ fun GarageScreen(onBack: () -> Unit) {
                     }
 
                     Spacer(Modifier.height(28.dp))
-                    SheetTitle("Pagos") {
+                    SheetTitle(state.copy.paymentsTitle) {
                         Text(
                             "+ REGISTRAR",
                             style = MaterialTheme.typography.labelLarge,
@@ -157,12 +169,12 @@ fun GarageScreen(onBack: () -> Unit) {
                     if (state.load != Load.READY) {
                         TicketSkeleton()
                     } else if (state.payments.isEmpty()) {
-                        Text("Aún no registras pagos.", color = Palette.InkSoft)
+                        Text(state.copy.noPayments, color = Palette.InkSoft)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         state.payments.forEach { payment ->
                             TicketCard(
-                                footer = payment.note ?: "Pago",
+                                footer = payment.note ?: state.copy.paymentNoun,
                                 badge = Money.format(payment.amount),
                                 onClick = {},
                                 onLongClick = { deletingPayment = payment },
@@ -200,16 +212,33 @@ fun GarageScreen(onBack: () -> Unit) {
             onDismiss = viewModel::closeDialog,
         )
         GarageDialog.Payment -> PaymentDialog(
+            title = state.copy.paymentDialogTitle,
             pending = state.summary.pending,
             onSave = viewModel::addPayment,
+            onDismiss = viewModel::closeDialog,
+        )
+        GarageDialog.EditCounter -> state.counter?.let { counter ->
+            CounterDialog(
+                counter = counter,
+                busy = false,
+                onSave = viewModel::saveCounter,
+                onDismiss = viewModel::closeDialog,
+                onDelete = viewModel::openDeleteCounter,
+            )
+        }
+        GarageDialog.DeleteCounter -> ConfirmDialog(
+            title = "Eliminar «${state.counter?.name.orEmpty()}»",
+            message = "Se borran todos sus días, cargos y pagos. No se puede deshacer.",
+            confirmText = "Eliminar",
+            onConfirm = { viewModel.deleteCounter(onDeleted = onBack) },
             onDismiss = viewModel::closeDialog,
         )
         null -> Unit
     }
     deletingPayment?.let { payment ->
         ConfirmDialog(
-            title = "Eliminar pago",
-            message = "¿Eliminar el pago de ${Money.format(payment.amount)} del ${Dates.longDay(payment.localDate)}?",
+            title = "Eliminar ${state.copy.paymentNoun.lowercase()}",
+            message = "¿Eliminar el ${state.copy.paymentNoun.lowercase()} de ${Money.format(payment.amount)} del ${Dates.longDay(payment.localDate)}?",
             confirmText = "Eliminar",
             onConfirm = { viewModel.removePayment(payment) },
             onDismiss = { deletingPayment = null },
@@ -224,7 +253,7 @@ private fun AccountCard(state: GarageUiState, onSettings: () -> Unit, onPay: () 
     GlassCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "PENDIENTE HASTA HOY",
+                state.copy.pendingLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = Palette.OnDarkSoft,
                 modifier = Modifier.weight(1f),
@@ -255,7 +284,7 @@ private fun AccountCard(state: GarageUiState, onSettings: () -> Unit, onPay: () 
             fontSize = 13.sp,
         )
         if (summary.pending < 0) {
-            Text("Tienes saldo a favor.", color = Palette.Success, fontSize = 13.sp)
+            Text(state.copy.favorLabel, color = Palette.Success, fontSize = 13.sp)
         }
         if (summary.daysWithoutRate > 0) {
             Spacer(Modifier.height(8.dp))
@@ -278,7 +307,7 @@ private fun AccountCard(state: GarageUiState, onSettings: () -> Unit, onPay: () 
                 onClick = onSettings,
                 modifier = Modifier.weight(1f),
             )
-            PillButton("Pagar", onClick = onPay, icon = Icons.Outlined.Payments, light = true)
+            PillButton(state.copy.payButton, onClick = onPay, icon = Icons.Outlined.Payments, light = true)
         }
     }
 }

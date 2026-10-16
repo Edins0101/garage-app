@@ -236,6 +236,7 @@ fun GarageSettingsDialog(
 @Composable
 fun PaymentDialog(
     pending: Double,
+    title: String = "Registrar pago",
     onSave: (date: LocalDate, amount: String, note: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -270,7 +271,7 @@ fun PaymentDialog(
         containerColor = Palette.Sheet,
         titleContentColor = Palette.Ink,
         textContentColor = Palette.InkSoft,
-        title = { Text("Registrar pago") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (pending > 0) Text("Pendiente hasta hoy: ${Money.format(pending)}", fontSize = 13.sp)

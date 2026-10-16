@@ -24,6 +24,11 @@ import java.io.File
 /** "Base de datos" del servidor simulado. */
 @Serializable
 data class FakeDb(
+    /** Contadores por día (el garaje es uno más). */
+    val counters: List<FakeCounter> = emptyList(),
+    /** true cuando el garaje de versiones anteriores ya pasó a [counters]. */
+    val countersMigrated: Boolean = false,
+    // Garaje de versiones anteriores (solo se leen una vez para crear "Mi garaje").
     val garageDays: List<GarageDay> = emptyList(),
     val garageSettings: GarageSettings = GarageSettings(),
     /** Último día rellenado por el marcado automático. */
