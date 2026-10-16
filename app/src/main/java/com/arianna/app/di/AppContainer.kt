@@ -5,20 +5,25 @@ import com.arianna.app.BuildConfig
 import com.arianna.app.data.fake.FakeAuthRepository
 import com.arianna.app.data.fake.FakeGarageRepository
 import com.arianna.app.data.fake.FakeListsRepository
+import com.arianna.app.data.fake.FakeRemindersRepository
 import com.arianna.app.data.fake.FakeSharingRepository
 import com.arianna.app.data.fake.FakeStore
 import com.arianna.app.data.remote.ApiClient
 import com.arianna.app.data.remote.RemoteAuthRepository
 import com.arianna.app.data.remote.RemoteGarageRepository
 import com.arianna.app.data.remote.RemoteListsRepository
+import com.arianna.app.data.remote.RemoteRemindersRepository
 import com.arianna.app.data.remote.RemoteSharingRepository
 import com.arianna.app.data.prefs.AppearanceStore
 import com.arianna.app.data.push.PushRegistrar
+import com.arianna.app.data.reminders.ReminderSnapshotStore
+import com.arianna.app.data.reminders.ReminderWorker
 import com.arianna.app.data.prefs.HomePrefsStore
 import com.arianna.app.data.session.SessionStore
 import com.arianna.app.domain.repository.AuthRepository
 import com.arianna.app.domain.repository.GarageRepository
 import com.arianna.app.domain.repository.ListsRepository
+import com.arianna.app.domain.repository.RemindersRepository
 import com.arianna.app.domain.repository.SharingRepository
 import java.io.File
 
@@ -47,6 +52,7 @@ class AppContainer(context: Context) {
         val garage: GarageRepository,
         val lists: ListsRepository,
         val sharing: SharingRepository,
+        val reminders: RemindersRepository,
     )
 
     private fun createData(): DataRepositories =
@@ -55,10 +61,16 @@ class AppContainer(context: Context) {
                 FakeGarageRepository(fakeStore),
                 FakeListsRepository(fakeStore, File(appContext.filesDir, "fake-images")),
                 FakeSharingRepository(fakeStore),
+                FakeRemindersRepository(fakeStore),
             )
         } else {
             val lists = RemoteListsRepository(api)
-            DataRepositories(RemoteGarageRepository(api), lists, RemoteSharingRepository(api, lists))
+            DataRepositories(
+                RemoteGarageRepository(api),
+                lists,
+                RemoteSharingRepository(api, lists),
+                RemoteRemindersRepository(api),
+            )
         }
 
     @Volatile
@@ -75,6 +87,8 @@ class AppContainer(context: Context) {
         object : AuthRepository by delegate {
             override fun logout() {
                 push.unregister(closingSessionToken = sessions.token)
+                ReminderWorker.cancel(appContext)
+                ReminderSnapshotStore(appContext).clear()
                 delegate.logout()
                 data = createData()
             }
@@ -84,4 +98,5 @@ class AppContainer(context: Context) {
     val garage: GarageRepository get() = data.garage
     val lists: ListsRepository get() = data.lists
     val sharing: SharingRepository get() = data.sharing
+    val reminders: RemindersRepository get() = data.reminders
 }

@@ -158,11 +158,95 @@ data class Checklist(
     val progress: Float get() = if (items.isEmpty()) 0f else doneCount.toFloat() / items.size
 }
 
-/** Código y enlace para que otra persona se una a una lista. */
+/** Código y enlace para que otra persona se una a una lista o a una sección de recordatorios. */
 @Serializable
 data class ShareInvite(
     val code: String,
     val url: String,
-    val listId: String,
+    val listId: String? = null,
+    val spaceId: String? = null,
     val expiresAt: String,
+)
+
+/** A qué se unió alguien con un código (POST /join). */
+@Serializable
+data class JoinResult(
+    val type: String,
+    val listId: String? = null,
+    val spaceId: String? = null,
+    val kind: ReminderKind? = null,
+)
+
+// ---------------------------------------------------------------- recordatorios (docs/PLAN-RECORDATORIOS.md)
+
+/** Sección de recordatorios. Por ahora la app muestra Pagos; Mi hogar y Mi carro usan el mismo motor. */
+@Serializable
+enum class ReminderKind {
+    @SerialName("payments") PAYMENTS,
+    @SerialName("home") HOME,
+    @SerialName("car") CAR;
+
+    /** Como va en la API y en los deep links (arianna://reminders/payments). */
+    val apiName: String get() = name.lowercase()
+
+    companion object {
+        fun fromApi(value: String?): ReminderKind = entries.find { it.apiName == value } ?: PAYMENTS
+    }
+}
+
+@Serializable
+enum class RepeatUnit {
+    @SerialName("day") DAY,
+    @SerialName("week") WEEK,
+    @SerialName("month") MONTH,
+    @SerialName("year") YEAR,
+}
+
+/** Cada vez que se marcó como pagado/hecho. */
+@Serializable
+data class ReminderLog(
+    val id: String,
+    /** Vencimiento que se cubrió. */
+    val dueDate: String,
+    val amount: Double? = null,
+    val note: String? = null,
+    val doneBy: String? = null,
+    val doneByName: String? = null,
+    val createdAt: String,
+) {
+    val localDueDate: LocalDate get() = LocalDate.parse(dueDate)
+}
+
+@Serializable
+data class Reminder(
+    val id: String,
+    val spaceId: String,
+    val kind: ReminderKind,
+    val title: String,
+    /** Monto estimado (el real se guarda al marcarlo). */
+    val amount: Double? = null,
+    /** every=1, unit=MONTH → cada mes. Ambos null = una sola vez. */
+    val every: Int? = null,
+    val unit: RepeatUnit? = null,
+    val nextDue: String,
+    val notifyDaysBefore: Int = 2,
+    val note: String? = null,
+    /** Una sola vez y ya hecho. */
+    val finished: Boolean = false,
+    val lastDone: ReminderLog? = null,
+    val createdAt: String,
+    val updatedAt: String,
+) {
+    val dueDate: LocalDate get() = LocalDate.parse(nextDue)
+    val repeats: Boolean get() = every != null && unit != null
+}
+
+/** Sección (propia o de otra persona) con quienes la comparten. */
+@Serializable
+data class ReminderSpace(
+    val id: String,
+    val kind: ReminderKind,
+    val ownerId: String,
+    val ownerName: String,
+    val members: List<SharedMember> = emptyList(),
 )

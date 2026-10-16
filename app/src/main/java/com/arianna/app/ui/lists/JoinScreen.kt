@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.repository.SharingRepository
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.appViewModel
@@ -33,7 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 sealed interface JoinState {
     data object Loading : JoinState
-    data class Joined(val listId: String) : JoinState
+    data class Joined(val result: JoinResult) : JoinState
     data class Failed(val message: String) : JoinState
 }
 
@@ -44,9 +45,9 @@ class JoinViewModel(code: String, sharing: SharingRepository) : BaseViewModel() 
     init {
         launchSafely {
             _state.value = try {
-                JoinState.Joined(sharing.joinByCode(code).id)
+                JoinState.Joined(sharing.joinByCode(code))
             } catch (e: Exception) {
-                JoinState.Failed(e.message ?: "No se pudo unir a la lista")
+                JoinState.Failed(e.message ?: "No se pudo usar el código")
             }
         }
     }
@@ -54,12 +55,12 @@ class JoinViewModel(code: String, sharing: SharingRepository) : BaseViewModel() 
 
 /** Se abre con el deep link arianna://join/CODIGO. */
 @Composable
-fun JoinScreen(code: String, onJoined: (String) -> Unit, onBack: () -> Unit) {
+fun JoinScreen(code: String, onJoined: (JoinResult) -> Unit, onBack: () -> Unit) {
     val viewModel = appViewModel(key = "join-$code") { JoinViewModel(code, it.sharing) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state) {
-        (state as? JoinState.Joined)?.let { onJoined(it.listId) }
+        (state as? JoinState.Joined)?.let { onJoined(it.result) }
     }
 
     CosmicBackground {
@@ -71,7 +72,7 @@ fun JoinScreen(code: String, onJoined: (String) -> Unit, onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TopBar(title = "Unirme a una lista", overline = "Código $code", onBack = onBack)
+            TopBar(title = "Unirme", overline = "Código $code", onBack = onBack)
             Spacer(Modifier.height(40.dp))
             CircleAvatar(Icons.Outlined.VpnKey, size = 88.dp)
             when (val current = state) {

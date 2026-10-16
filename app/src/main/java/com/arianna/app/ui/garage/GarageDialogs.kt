@@ -54,25 +54,11 @@ import com.arianna.app.ui.components.SheetTitle
 import com.arianna.app.ui.theme.Palette
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
+import com.arianna.app.ui.common.MoneyField
+import com.arianna.app.ui.common.asInput
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-
-private fun Double.asInput(): String = Money.toApi(this).removeSuffix(".00")
-
-@Composable
-private fun MoneyField(value: String, onChange: (String) -> Unit, label: String, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { input -> onChange(input.filter { it.isDigit() || it == '.' || it == ',' }.take(9)) },
-        label = { Text(label) },
-        prefix = { Text("$ ") },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-        colors = appFieldColors(),
-        modifier = modifier,
-    )
-}
 
 /** Detalle de un día: nota, tarifa del día y cargos extra. */
 @OptIn(ExperimentalMaterial3Api::class)

@@ -4,7 +4,6 @@ import androidx.lifecycle.viewModelScope
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.repository.ListsRepository
-import com.arianna.app.domain.repository.SharingRepository
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,7 +36,6 @@ class ListsViewModel(
     initialFilter: String?,
     initialQuery: String?,
     private val lists: ListsRepository,
-    private val sharing: SharingRepository,
 ) : BaseViewModel() {
 
     private val filter = MutableStateFlow(ListFilter.from(initialFilter))
@@ -84,10 +82,5 @@ class ListsViewModel(
     fun delete(list: Checklist) = launchSafely {
         lists.deleteList(list.id)
         notify("Lista \"${list.title}\" eliminada")
-    }
-
-    fun join(code: String) = launchSafely {
-        val list = sharing.joinByCode(code)
-        _openList.emit(list.id)
     }
 }

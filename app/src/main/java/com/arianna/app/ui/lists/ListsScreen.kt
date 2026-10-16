@@ -73,8 +73,10 @@ fun ListsScreen(
     route: ListsRoute,
     onBack: () -> Unit,
     onOpenList: (String) -> Unit,
+    /** Abre la pantalla de unirse: sirve para códigos de listas y de secciones (Pagos). */
+    onJoinCode: (String) -> Unit,
 ) {
-    val viewModel = appViewModel { ListsViewModel(route.filter, route.query, it.lists, it.sharing) }
+    val viewModel = appViewModel { ListsViewModel(route.filter, route.query, it.lists) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -207,14 +209,14 @@ fun ListsScreen(
     }
     if (joining) {
         TextInputDialog(
-            title = "Unirme a una lista",
-            description = "Escribe el código de 6 caracteres que te compartieron.",
+            title = "Unirme",
+            description = "Escribe el código de 6 caracteres que te compartieron (de una lista o de pagos).",
             label = "Código",
             confirmText = "Unirme",
             capitalization = KeyboardCapitalization.Characters,
             onConfirm = {
                 joining = false
-                viewModel.join(it)
+                onJoinCode(it.trim().uppercase())
             },
             onDismiss = { joining = false },
         )

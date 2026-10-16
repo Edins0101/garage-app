@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 
 /** Secciones que puede mostrar el inicio. */
 @Serializable
-enum class HomeSection { GARAGE, SHOPPING, TASKS }
+enum class HomeSection { GARAGE, PAYMENTS, SHOPPING, TASKS }
 
 /**
  * Cómo quiere el usuario su pantalla de inicio.
@@ -23,6 +23,9 @@ data class HomePrefs(
     val configured: Boolean = false,
 ) {
     val visible: List<HomeSection> get() = order.filterNot { it in hidden }
+
+    /** Suma al final las secciones nuevas (ej. Pagos) que no existían cuando se guardó. */
+    fun normalized(): HomePrefs = copy(order = order.distinct() + (HomeSection.entries - order.toSet()))
     val primary: HomeSection get() = visible.firstOrNull() ?: HomeSection.GARAGE
 
     /** Pone [section] primero y deja las demás en su orden. */
@@ -65,6 +68,6 @@ class HomePrefsStore(context: Context) {
         val stored = prefs.getString(userId, null)?.let {
             runCatching { json.decodeFromString(HomePrefs.serializer(), it) }.getOrNull()
         }
-        MutableStateFlow(stored ?: HomePrefs())
+        MutableStateFlow(stored?.normalized() ?: HomePrefs())
     }
 }

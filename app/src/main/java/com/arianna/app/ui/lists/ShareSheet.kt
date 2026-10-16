@@ -39,10 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.MemberStatus
 import com.arianna.app.domain.model.ShareInvite
+import com.arianna.app.domain.model.SharedMember
 import com.arianna.app.ui.common.appFieldColors
 import com.arianna.app.ui.components.PillButton
 import com.arianna.app.ui.components.SheetTitle
@@ -53,19 +53,28 @@ import java.time.ZoneId
 
 private fun roleLabel(role: MemberRole) = if (role == MemberRole.EDITOR) "Puede editar" else "Solo ver"
 
+/**
+ * Hoja para compartir una lista o una sección de recordatorios: código, correo y miembros.
+ * [onSendText] null oculta "Enviar como mensaje"; [extra] agrega contenido al final.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareSheet(
-    list: Checklist,
+    title: String,
+    members: List<SharedMember>,
     invite: ShareInvite?,
     busy: Boolean,
     demoMode: Boolean,
-    onSendText: () -> Unit,
+    onSendText: (() -> Unit)?,
     onCreateInvite: () -> Unit,
     onShareInvite: (ShareInvite) -> Unit,
     onInvite: (String, MemberRole, () -> Unit) -> Unit,
     onRemoveMember: (String) -> Unit,
     onDismiss: () -> Unit,
+    intro: String? = null,
+    codeHint: String = "La otra persona lo escribe en Listas → Unirme para ver esta lista.",
+    emptyMembers: String = "Todavía nadie más ve esta lista.",
+    extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var role by rememberSaveable { mutableStateOf(MemberRole.EDITOR) }
@@ -83,12 +92,13 @@ fun ShareSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
-            Text("Compartir \"${list.title}\"", style = MaterialTheme.typography.headlineSmall, color = Palette.Ink)
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = Palette.Ink)
+            if (intro != null) Text(intro, color = Palette.InkSoft, fontSize = 14.sp)
 
             if (demoMode) {
                 Text(
-                    "Modo demo: sin backend, las invitaciones solo se guardan en este teléfono. " +
-                        "Enviar la lista como mensaje sí funciona.",
+                    "Modo demo: sin backend, las invitaciones solo se guardan en este teléfono." +
+                        if (onSendText != null) " Enviar la lista como mensaje sí funciona." else "",
                     color = Palette.Ink,
                     fontSize = 13.sp,
                     modifier = Modifier
@@ -98,9 +108,11 @@ fun ShareSheet(
                 )
             }
 
-            Section("Enviar como mensaje") {
-                Text("Manda la lista por WhatsApp, SMS o correo.", color = Palette.InkSoft, fontSize = 14.sp)
-                PillButton("Enviar lista", onClick = onSendText, icon = Icons.AutoMirrored.Outlined.Send, modifier = Modifier.fillMaxWidth())
+            if (onSendText != null) {
+                Section("Enviar como mensaje") {
+                    Text("Manda la lista por WhatsApp, SMS o correo.", color = Palette.InkSoft, fontSize = 14.sp)
+                    PillButton("Enviar lista", onClick = onSendText, icon = Icons.AutoMirrored.Outlined.Send, modifier = Modifier.fillMaxWidth())
+                }
             }
 
             Section("Código de invitación") {
@@ -120,7 +132,7 @@ fun ShareSheet(
                     PillButton("Compartir código", onClick = { onShareInvite(invite) }, light = true, modifier = Modifier.fillMaxWidth())
                 } else {
                     Text(
-                        "La otra persona lo escribe en Listas → Unirme para ver esta lista.",
+                        codeHint,
                         color = Palette.InkSoft,
                         fontSize = 14.sp,
                     )
@@ -167,11 +179,11 @@ fun ShareSheet(
                 )
             }
 
-            Section("Compartida con (${list.sharedWith.size})") {
-                if (list.sharedWith.isEmpty()) {
-                    Text("Todavía nadie más ve esta lista.", color = Palette.InkSoft, fontSize = 14.sp)
+            Section("Compartida con (${members.size})") {
+                if (members.isEmpty()) {
+                    Text(emptyMembers, color = Palette.InkSoft, fontSize = 14.sp)
                 }
-                list.sharedWith.forEach { member ->
+                members.forEach { member ->
                     Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(member.name ?: member.email, color = Palette.Ink, fontWeight = FontWeight.SemiBold)
@@ -194,6 +206,7 @@ fun ShareSheet(
                     HorizontalDivider(color = Palette.Divider)
                 }
             }
+            extra()
         }
     }
 }

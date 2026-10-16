@@ -44,7 +44,7 @@
 - [ ] Configurar Brevo en Render (`EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM`). Mientras tanto, el código aparece en Render → Logs
 - [ ] Configurar OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
 - [ ] Rotar la contraseña de la base (se compartió en un chat)
-- [ ] Ver cuándo vence la base gratis de Render (30 días) y migrar a Neon antes de esa fecha
+- [ ] **La base de Render vence el 2026-11-13** (plan Free): migrar a Neon antes de esa fecha
 - [x] Tarifa diaria (cada día guarda la suya), cargos extra por día, pagos y resumen "pendiente hasta hoy"
 - [x] Marcado automático diario con la tarifa por defecto (sin cron; los días quitados no reaparecen)
 - [x] Inicio personalizable: el usuario elige qué ver primero (Garaje, Compras o Tareas), puede reordenar y ocultar secciones
@@ -64,7 +64,8 @@
 - [x] Nuevo nombre: **Arianna** (paquete `com.arianna.app`, deep links `arianna://`, ícono "A" con estrella, saludo con resumen de pendientes)
 - [x] Registrar `com.arianna.app` en Firebase y poner el nuevo `google-services.json` en `app/`
 - [ ] Cambiar `EMAIL_FROM_NAME` a `Arianna` en Render (si estaba puesto como `Garaje`)
-- [ ] Pagos recurrentes con recordatorios
+- [x] Pagos recurrentes con recordatorios ([PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md)): sección compartible, "Ya pagué", historial, deshacer y avisos desde el teléfono
+- [ ] Mi hogar (mantenimientos: aire, lavadora, fumigación) sobre el mismo motor de recordatorios
 - [ ] Contadores por día (generalizar el garaje)
 - [ ] Módulo "Mi carro" (matrícula, pico y placa, mantenimiento)
 
@@ -93,3 +94,4 @@
 ### 2026-10-16
 - Cambio de nombre a **Arianna** (v0.3.0): paquete y `applicationId` `com.arianna.app`, deep links `arianna://`, ícono nuevo ("A" blanca con estrella dorada, también en la barra de notificaciones), marca en el inicio y el acceso, y saludo de Arianna con el resumen de pendientes según las secciones visibles. Backend: correos con el nombre nuevo y enlaces de invitación `arianna://join/`. El `google-services.json` viejo (paquete `com.garaje.app`) se movió a `D:\Projects\garaje-keys\google-services.garaje-old.json`.
 - Firebase: `com.arianna.app` registrada en el proyecto `garage-21c4c` (el json trae las dos apps). Probado en producción con el APK release: Beto agrega «Pan» y a Ana le llega "Súper compartido — Beto agregó «Pan»".
+- Pagos (v0.4.0): motor de recordatorios para Pagos, Mi hogar y Mi carro (por ahora solo se ve Pagos). Backend: tablas spaces, space_members, reminders y reminder_logs (migración `8b3e1d7a9c20`, probada en un Postgres 18 local con Docker), endpoints `/spaces`, `/reminders` y `POST /join` para códigos de listas y de secciones; 8 tests nuevos (38 en total). App: pantalla Pagos (vencidos, próximos 7 días, más adelante), "Ya pagué" con monto real, deshacer, historial, compartir la sección, sección "Próximos pagos" en el inicio y en el saludo, avisos locales con WorkManager (canal "Recordatorios de pagos"). Primeros tests unitarios de la app (`RemindersTest`). Nuevo: `-Parianna.fakes=true` para compilar con datos falsos. Probado en el emulador con datos falsos: aviso «Luz» vence en 2 días, pagar, deshacer, crear y compartir.

@@ -4,6 +4,7 @@ import com.arianna.app.ui.components.ItemRowSkeleton
 import com.arianna.app.ui.components.TicketSkeleton
 import com.arianna.app.ui.components.SkeletonBox
 import com.arianna.app.ui.components.LoadNotice
+import com.arianna.app.ui.common.shareText
 import com.arianna.app.ui.common.Load
 import android.content.Context
 import android.content.Intent
@@ -337,7 +338,8 @@ fun ListDetailScreen(onBack: () -> Unit) {
 
     if (sharing && list != null) {
         ShareSheet(
-            list = list,
+            title = "Compartir \"${list.title}\"",
+            members = list.sharedWith,
             invite = state.invite,
             busy = state.busy,
             demoMode = viewModel.demoMode,
@@ -529,12 +531,4 @@ private fun newCameraUri(context: Context): Uri {
     val dir = File(context.cacheDir, "camera").apply { mkdirs() }
     val file = File(dir, "foto-${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
-private fun shareText(context: Context, text: String) {
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(Intent.createChooser(send, "Compartir lista"))
 }

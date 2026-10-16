@@ -7,6 +7,9 @@
 - Nunca se avisa a quien hizo el cambio. Las listas sin compartir no generan avisos.
 - Varias cosas seguidas en la misma lista **reemplazan** la notificación (tag por lista) en vez de acumularse.
 - Al tocarla se abre la lista (`arianna://list/{id}`).
+- **Recordatorios de pagos**: los avisos de vencimiento los arma el propio teléfono (`ReminderWorker`, canal
+  "Recordatorios de pagos"), sin servidor. El backend solo manda push cuando otra persona de la sección agrega o
+  marca un pago (`kind` en los datos → abre `arianna://reminders/{kind}`). Ver [PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md).
 
 ## Cómo funciona
 

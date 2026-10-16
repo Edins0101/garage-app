@@ -7,6 +7,13 @@ import com.arianna.app.domain.model.GarageCharge
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
+import com.arianna.app.domain.model.JoinResult
+import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderKind
+import com.arianna.app.domain.model.ReminderLog
+import com.arianna.app.domain.model.ReminderSpace
+import com.arianna.app.domain.repository.ReminderDraft
+import com.arianna.app.domain.repository.RemindersRepository
 import com.arianna.app.domain.model.Payment
 import com.arianna.app.domain.model.Product
 import com.arianna.app.domain.repository.PhotoInput
@@ -30,6 +37,9 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.net.URLEncoder
 import java.time.LocalDate
 
@@ -293,9 +303,89 @@ class RemoteSharingRepository(
     override suspend fun createInvite(listId: String): ShareInvite =
         api.request("POST", "/lists/${enc(listId)}/invites", null, ShareInvite.serializer())!!
 
-    override suspend fun joinByCode(code: String): Checklist {
-        val list = api.request("POST", "/invites/join", api.body(JoinBody(code)), Checklist.serializer())!!
-        lists.refresh()
-        return list
+    override suspend fun joinByCode(code: String): JoinResult {
+        val result = api.request("POST", "/join", api.body(JoinBody(code)), JoinResult.serializer())!!
+        if (result.listId != null) lists.refresh()
+        return result
     }
+}
+
+@Serializable private data class DoneBody(val amount: String? = null, val note: String? = null)
+
+class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepository {
+    private val reminders = MutableStateFlow<Map<ReminderKind, List<Reminder>>>(emptyMap())
+    private val spaces = MutableStateFlow<Map<ReminderKind, List<ReminderSpace>>>(emptyMap())
+
+    override fun observeReminders(kind: ReminderKind): Flow<List<Reminder>> =
+        reminders.map { it[kind].orEmpty() }.onStart { refresh(kind) }
+
+    override fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>> = spaces.map { it[kind].orEmpty() }
+
+    override suspend fun refresh(kind: ReminderKind) {
+        val query = "?kind=${kind.apiName}"
+        spaces.value += kind to api.request("GET", "/spaces$query", null, ListSerializer(ReminderSpace.serializer()))!!
+        reminders.value += kind to api.request("GET", "/reminders$query", null, ListSerializer(Reminder.serializer()))!!
+    }
+
+    /** Todos los campos, con null explícito: así al editar se puede borrar el monto o la repetición. */
+    private fun draftJson(draft: ReminderDraft): JsonObject = buildJsonObject {
+        put("title", draft.title.trim())
+        put("amount", draft.amount?.let(Money::toApi))
+        put("every", draft.every)
+        put("unit", draft.unit?.name?.lowercase())
+        put("nextDue", draft.nextDue.toString())
+        put("notifyDaysBefore", draft.notifyDaysBefore)
+        put("note", draft.note?.trim()?.takeIf { it.isNotEmpty() })
+    }
+
+    override suspend fun create(kind: ReminderKind, draft: ReminderDraft, spaceId: String?): Reminder {
+        val body = JsonObject(draftJson(draft) + buildJsonObject {
+            put("kind", kind.apiName)
+            if (spaceId != null) put("spaceId", spaceId)
+        })
+        val reminder = api.request("POST", "/reminders", body.toString(), Reminder.serializer())!!
+        refresh(kind)
+        return reminder
+    }
+
+    override suspend fun update(reminder: Reminder, draft: ReminderDraft) {
+        api.request("PATCH", "/reminders/${enc(reminder.id)}", draftJson(draft).toString(), Reminder.serializer())
+        refresh(reminder.kind)
+    }
+
+    override suspend fun delete(reminder: Reminder) {
+        api.request<Unit>("DELETE", "/reminders/${enc(reminder.id)}", null, null)
+        refresh(reminder.kind)
+    }
+
+    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder {
+        val body = DoneBody(amount?.let(Money::toApi), note?.trim()?.takeIf { it.isNotEmpty() })
+        val updated = api.request("POST", "/reminders/${enc(reminder.id)}/done", api.body(body), Reminder.serializer())!!
+        refresh(reminder.kind)
+        return updated
+    }
+
+    override suspend fun undo(reminder: Reminder) {
+        api.request("POST", "/reminders/${enc(reminder.id)}/undo", null, Reminder.serializer())
+        refresh(reminder.kind)
+    }
+
+    override suspend fun history(reminder: Reminder): List<ReminderLog> =
+        api.request("GET", "/reminders/${enc(reminder.id)}/history", null, ListSerializer(ReminderLog.serializer()))!!
+
+    override suspend fun inviteToSpace(space: ReminderSpace, email: String, role: MemberRole): SharedMember {
+        val member = api.request(
+            "POST", "/spaces/${enc(space.id)}/members", api.body(InviteBody(email, role)), SharedMember.serializer(),
+        )!!
+        refresh(space.kind)
+        return member
+    }
+
+    override suspend fun removeSpaceMember(space: ReminderSpace, email: String) {
+        api.request<Unit>("DELETE", "/spaces/${enc(space.id)}/members/${enc(email)}", null, null)
+        refresh(space.kind)
+    }
+
+    override suspend fun createSpaceInvite(space: ReminderSpace): ShareInvite =
+        api.request("POST", "/spaces/${enc(space.id)}/invites", null, ShareInvite.serializer())!!
 }

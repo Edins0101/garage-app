@@ -103,7 +103,37 @@ Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento conf
 | POST | `/lists/{id}/members` | `{ email, role: 'editor' \| 'viewer' }` | `SharedMember` (si ya existe, actualiza el rol) |
 | DELETE | `/lists/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse él mismo) |
 | POST | `/lists/{id}/invites` | — | `ShareInvite` (reutiliza uno vigente si existe) |
-| POST | `/invites/join` | `{ code }` | `Checklist` (agrega al usuario como miembro) |
+| POST | `/invites/join` | `{ code }` | `Checklist` (solo listas; lo usaban las versiones ≤ 0.3 de la app) |
+| POST | `/join` | `{ code }` | `JoinResult { type: 'list' \| 'space', listId?, spaceId?, kind? }`: sirve para códigos de listas y de secciones |
+
+`ShareInvite` trae `listId` **o** `spaceId` (uno de los dos).
+
+## Recordatorios (Pagos, Mi hogar, Mi carro)
+
+Diseño en [PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md). `kind` = `payments` \| `home` \| `car` (la app hoy muestra solo Pagos).
+Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte completa.
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/spaces?kind=payments` | — | `ReminderSpace[]`: la propia primero y luego las compartidas conmigo |
+| POST | `/spaces/{id}/members` | `{ email, role }` | `SharedMember` (solo el dueño) |
+| DELETE | `/spaces/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse) |
+| POST | `/spaces/{id}/invites` | — | `ShareInvite` con `spaceId` (solo el dueño) |
+| GET | `/reminders?kind=payments` | — | `Reminder[]` de todas mis secciones de ese tipo, por `nextDue` |
+| POST | `/reminders` | `{ kind, spaceId?, title, amount?, every?, unit?, nextDue, notifyDaysBefore, note? }` | `Reminder` (201) |
+| PATCH | `/reminders/{id}` | mismos campos; `null` borra `amount`, `note` o la repetición | `Reminder` |
+| DELETE | `/reminders/{id}` | — | 204 |
+| POST | `/reminders/{id}/done` | `{ amount?, note? }` | `Reminder` ya en el siguiente vencimiento (o `finished` si es de una sola vez) |
+| POST | `/reminders/{id}/undo` | — | `Reminder` (vuelve al vencimiento de la última marca; 409 si no hay) |
+| GET | `/reminders/{id}/history` | — | `ReminderLog[]`, el más reciente primero |
+
+- `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, note, finished, lastDone, createdAt, updatedAt`.
+  `every` y `unit` van juntos o ambos `null` (una sola vez).
+- Meses: se respeta el día original (vence el 31 → 28 feb → 31 mar).
+- Permisos como en las listas: dueño y editores crean, editan y marcan; viewer solo ve; sin acceso, 404.
+- Al crear o marcar, el backend avisa por push a los demás de la sección
+  (`data: { type: 'reminder_added' | 'reminder_done', kind, reminderId }`).
+- Los avisos de vencimiento **no** salen del backend: los calcula cada teléfono (`ReminderWorker`).
 
 ## Reglas de negocio esperadas en el backend
 

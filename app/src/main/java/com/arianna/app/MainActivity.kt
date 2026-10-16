@@ -20,6 +20,7 @@ import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.arianna.app.data.push.Notifications
+import com.arianna.app.data.reminders.ReminderWorker
 import com.arianna.app.ui.login.LoginScreen
 import com.arianna.app.ui.navigation.AppNavHost
 import com.arianna.app.ui.theme.AriannaTheme
@@ -64,17 +65,23 @@ private fun MainContent(activity: ComponentActivity) {
     AppNavHost(navController)
 }
 
-/** Pide el permiso de notificaciones una vez (Android 13+) y registra el teléfono en el backend. */
+/**
+ * Pide el permiso de notificaciones una vez (Android 13+), registra el teléfono en el backend
+ * (push de listas compartidas) y programa la revisión diaria de recordatorios (avisos locales).
+ */
 @Composable
 private fun NotificationSetup(activity: ComponentActivity) {
     val push = (activity.application as AriannaApp).container.push
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { push.sync() }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        push.sync()
+        ReminderWorker.schedule(activity)
+    }
     LaunchedEffect(Unit) {
-        if (!push.available) return@LaunchedEffect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Notifications.canNotify(activity)) {
             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             push.sync()
+            ReminderWorker.schedule(activity)
         }
     }
 }

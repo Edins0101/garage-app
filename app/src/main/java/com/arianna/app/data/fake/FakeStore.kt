@@ -5,6 +5,9 @@ import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.Payment
 import com.arianna.app.domain.model.Product
+import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderLog
+import com.arianna.app.domain.model.ReminderSpace
 import com.arianna.app.domain.model.ShareInvite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,6 +33,13 @@ data class FakeDb(
     /** Catálogo de productos (todos del usuario local). */
     val products: List<Product> = emptyList(),
     val invites: List<ShareInvite> = emptyList(),
+    /** Recordatorios (Pagos, Mi hogar, Mi carro). */
+    val spaces: List<ReminderSpace> = emptyList(),
+    val reminders: List<Reminder> = emptyList(),
+    /** Historial por recordatorio, el más reciente primero. */
+    val reminderLogs: Map<String, List<ReminderLog>> = emptyMap(),
+    /** Día del mes original de cada recordatorio (para los meses cortos). */
+    val anchorDays: Map<String, Int> = emptyMap(),
 )
 
 /**

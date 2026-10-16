@@ -12,7 +12,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
 /**
- * Recibe los mensajes de FCM. El backend manda mensajes solo de datos (title, body, listId, tag),
+ * Recibe los mensajes de FCM. El backend manda mensajes solo de datos (title, body, listId o kind, tag),
  * así la notificación se arma igual con la app abierta o cerrada.
  */
 class AriannaMessagingService : FirebaseMessagingService() {
@@ -26,6 +26,9 @@ class AriannaMessagingService : FirebaseMessagingService() {
         val data = message.data
         val title = data["title"] ?: message.notification?.title ?: return
         val body = data["body"] ?: message.notification?.body.orEmpty()
-        Notifications.show(this, title, body, listId = data["listId"], tag = data["tag"])
+        val kind = data["kind"]
+        val link = data["listId"]?.let(Notifications::listLink) ?: kind?.let(Notifications::remindersLink)
+        val channel = if (kind != null) Notifications.CHANNEL_REMINDERS else Notifications.CHANNEL_LISTS
+        Notifications.show(this, title, body, link = link, tag = data["tag"], channel = channel)
     }
 }

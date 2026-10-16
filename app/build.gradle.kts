@@ -24,11 +24,12 @@ android {
         applicationId = "com.arianna.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
 
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
-        buildConfigField("boolean", "USE_FAKES", "false")
+        // Datos falsos en el teléfono (sin backend): ./gradlew installDebug -Parianna.fakes=true
+        buildConfigField("boolean", "USE_FAKES", (findProperty("arianna.fakes") ?: "false").toString())
         buildConfigField("String", "API_URL", "\"https://garage-back-me4r.onrender.com/api\"")
     }
 
@@ -93,6 +94,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
 }

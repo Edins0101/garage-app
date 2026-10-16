@@ -4,7 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import com.arianna.app.util.Money
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -181,4 +186,31 @@ private fun KindChip(label: String, selected: Boolean, onClick: () -> Unit) {
             labelColor = Palette.Ink,
         ),
     )
+}
+
+/** Monto para un campo de texto: 12.50 → "12.50", 12.00 → "12". */
+fun Double.asInput(): String = Money.toApi(this).removeSuffix(".00")
+
+/** Campo de monto en dólares (solo números y separador decimal). */
+@Composable
+fun MoneyField(value: String, onChange: (String) -> Unit, label: String, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { input -> onChange(input.filter { it.isDigit() || it == '.' || it == ',' }.take(9)) },
+        label = { Text(label) },
+        prefix = { Text("$ ") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+        colors = appFieldColors(),
+        modifier = modifier,
+    )
+}
+
+/** Abre la hoja de compartir de Android (WhatsApp, SMS, correo…) con un texto. */
+fun shareText(context: Context, text: String, chooserTitle: String = "Compartir") {
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(send, chooserTitle))
 }

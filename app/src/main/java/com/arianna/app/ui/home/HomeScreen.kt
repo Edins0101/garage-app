@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
@@ -74,6 +75,8 @@ import com.arianna.app.data.prefs.HomePrefs
 import com.arianna.app.data.prefs.HomeSection
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistKind
+import com.arianna.app.domain.model.ReminderKind
+import com.arianna.app.util.Recurrence
 import com.arianna.app.ui.common.CollectMessages
 import com.arianna.app.ui.common.ConfirmDialog
 import com.arianna.app.ui.common.appViewModel
@@ -102,10 +105,11 @@ import java.time.YearMonth
 @Composable
 fun HomeScreen(
     onOpenGarage: () -> Unit,
+    onOpenReminders: (ReminderKind) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
 ) {
-    val viewModel = appViewModel { HomeViewModel(it.auth, it.garage, it.lists, it.homePrefs) }
+    val viewModel = appViewModel { HomeViewModel(it.auth, it.garage, it.lists, it.reminders, it.homePrefs) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -214,7 +218,12 @@ fun HomeScreen(
                     Spacer(Modifier.height(24.dp))
                     SectionTitle("Menú principal")
                     Spacer(Modifier.height(18.dp))
-                    MainMenu(prefs = state.prefs, onOpenGarage = onOpenGarage, onOpenLists = onOpenLists)
+                    MainMenu(
+                        prefs = state.prefs,
+                        onOpenGarage = onOpenGarage,
+                        onOpenPayments = { onOpenReminders(ReminderKind.PAYMENTS) },
+                        onOpenLists = onOpenLists,
+                    )
                     Spacer(Modifier.height(28.dp))
                 }
 
@@ -238,6 +247,10 @@ fun HomeScreen(
                                 onSelect = viewModel::select,
                                 onToggle = viewModel::toggleSelected,
                                 onOpenGarage = onOpenGarage,
+                            )
+                            HomeSection.PAYMENTS -> PaymentsSection(
+                                state = state,
+                                onOpen = { onOpenReminders(ReminderKind.PAYMENTS) },
                             )
                             HomeSection.SHOPPING -> ListsSection(
                                 title = "Compras",
@@ -271,6 +284,7 @@ private fun ColumnScope.SectionSkeleton(section: HomeSection) {
     SheetTitle(
         when (section) {
             HomeSection.GARAGE -> "Agenda del garaje"
+            HomeSection.PAYMENTS -> "Próximos pagos"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
         },
@@ -319,20 +333,28 @@ private fun BrandRow(onAppearance: () -> Unit, onCustomize: () -> Unit, onLogout
 private data class MenuEntry(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
 @Composable
-private fun MainMenu(prefs: HomePrefs, onOpenGarage: () -> Unit, onOpenLists: (ListsRoute) -> Unit) {
+private fun MainMenu(
+    prefs: HomePrefs,
+    onOpenGarage: () -> Unit,
+    onOpenPayments: () -> Unit,
+    onOpenLists: (ListsRoute) -> Unit,
+) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
         when (section) {
             HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage)
+            HomeSection.PAYMENTS -> MenuEntry(Icons.Outlined.Payments, "Pagos", onOpenPayments)
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
         }
     }
-    val entries = main + listOf(
+    val extras = listOf(
         MenuEntry(Icons.Outlined.Groups, "Compartidas") { onOpenLists(ListsRoute(filter = "shared")) },
         MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
         MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) },
     )
+    // Filas completas de 3: con las 4 secciones visibles, "Nueva lista" queda dentro de Compras/Tareas.
+    val entries = (main + extras).take(if (main.size >= 4) 6 else main.size + extras.size)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         entries.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -428,6 +450,47 @@ private fun GarageAgenda(
                 color = Palette.OnDark,
             )
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Palette.OnDark)
+        }
+    }
+}
+
+/** Los próximos 3 pagos, con su vencimiento; toca para ir a Pagos. */
+@Composable
+private fun ColumnScope.PaymentsSection(state: HomeUiState, onOpen: () -> Unit) {
+    SheetTitle("Próximos pagos") {
+        Text(
+            "VER TODOS",
+            style = MaterialTheme.typography.labelLarge,
+            color = Palette.Violet,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onOpen)
+                .padding(4.dp),
+        )
+    }
+    Spacer(Modifier.height(14.dp))
+    if (state.upcomingPayments.isEmpty()) {
+        Text("Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan.", color = Palette.InkSoft)
+        Spacer(Modifier.height(10.dp))
+        PillButton("Nuevo pago", onClick = onOpen, light = true, icon = Icons.Outlined.AddCircleOutline)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        state.upcomingPayments.forEach { reminder ->
+            val overdue = reminder.dueDate < LocalDate.now()
+            TicketCard(
+                footer = Recurrence.dueLabel(reminder),
+                badge = reminder.amount?.let(Money::format),
+                onClick = onOpen,
+                footerIcon = Icons.Outlined.Payments,
+            ) {
+                Text(reminder.title, fontWeight = FontWeight.Bold, color = Palette.Ink)
+                Text(
+                    Dates.longDay(reminder.dueDate).replaceFirstChar { it.uppercase() },
+                    color = if (overdue) Palette.Danger else Palette.InkSoft,
+                    fontSize = 13.sp,
+                )
+            }
         }
     }
 }

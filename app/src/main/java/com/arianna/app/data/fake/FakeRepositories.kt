@@ -9,6 +9,14 @@ import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.ImageRef
 import com.arianna.app.domain.model.ImageSource
+import com.arianna.app.domain.model.JoinResult
+import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderKind
+import com.arianna.app.domain.model.ReminderLog
+import com.arianna.app.domain.model.ReminderSpace
+import com.arianna.app.domain.repository.ReminderDraft
+import com.arianna.app.domain.repository.RemindersRepository
+import com.arianna.app.util.Recurrence
 import com.arianna.app.domain.model.Payment
 import com.arianna.app.domain.model.Product
 import com.arianna.app.domain.repository.PhotoInput
@@ -443,14 +451,190 @@ class FakeSharingRepository(private val store: FakeStore) : SharingRepository {
         db.copy(invites = valid + invite) to invite
     }
 
-    override suspend fun joinByCode(code: String): Checklist {
+    override suspend fun joinByCode(code: String): JoinResult {
         store.simulateLatency()
         val db = store.load()
         val clean = code.trim().uppercase()
         val invite = db.invites.find {
             it.code == clean && Instant.parse(it.expiresAt).isAfter(Instant.now())
         } ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)
-        // Sin backend no existe otro usuario real: en el mock "unirse" solo abre la lista.
-        return db.requireList(invite.listId)
+        // Sin backend no existe otro usuario real: en el mock "unirse" solo abre la lista o la sección.
+        invite.spaceId?.let { spaceId ->
+            val space = db.spaces.find { it.id == spaceId }
+                ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)
+            return JoinResult(type = "space", spaceId = spaceId, kind = space.kind)
+        }
+        return JoinResult(type = "list", listId = db.requireList(invite.listId!!).id)
+    }
+}
+
+/** Recordatorios en el teléfono: una sola sección por tipo (no hay otros usuarios en el modo demo). */
+class FakeRemindersRepository(private val store: FakeStore) : RemindersRepository {
+    private val emailRegex = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
+    private fun FakeDb.withSpace(kind: ReminderKind): Pair<FakeDb, ReminderSpace> {
+        spaces.find { it.kind == kind }?.let { return this to it }
+        val user = FakeSeed.currentUser
+        val space = ReminderSpace("space-${kind.apiName}", kind, user.id, user.name)
+        return copy(spaces = spaces + space) to space
+    }
+
+    private fun FakeDb.requireReminder(id: String): Reminder =
+        reminders.find { it.id == id } ?: throw DataException("El recordatorio no existe", DataException.Kind.NOT_FOUND)
+
+    private fun FakeDb.replaceReminder(reminder: Reminder): FakeDb =
+        copy(reminders = reminders.map { if (it.id == reminder.id) reminder.copy(updatedAt = now()) else it })
+
+    override fun observeReminders(kind: ReminderKind): Flow<List<Reminder>> = store.db
+        .filterNotNull()
+        .map { db -> db.reminders.filter { it.kind == kind }.sortedWith(compareBy({ it.nextDue }, { it.title })) }
+        .onStart { store.load() }
+
+    override fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>> = store.db
+        .filterNotNull()
+        .map { db -> db.withSpace(kind).first.spaces.filter { it.kind == kind } }
+
+    override suspend fun refresh(kind: ReminderKind) {
+        store.update { db -> db.withSpace(kind).first to Unit }
+    }
+
+    private fun validate(draft: ReminderDraft) {
+        if (draft.title.isBlank()) throw DataException("Ponle un nombre", DataException.Kind.INVALID)
+        if ((draft.every == null) != (draft.unit == null)) {
+            throw DataException("Indica cada cuánto se repite", DataException.Kind.INVALID)
+        }
+    }
+
+    override suspend fun create(kind: ReminderKind, draft: ReminderDraft, spaceId: String?): Reminder {
+        validate(draft)
+        return store.update { db ->
+            val (withSpace, space) = db.withSpace(kind)
+            val reminder = Reminder(
+                id = Ids.create("r-"),
+                spaceId = space.id,
+                kind = kind,
+                title = draft.title.trim(),
+                amount = draft.amount,
+                every = draft.every,
+                unit = draft.unit,
+                nextDue = draft.nextDue.toString(),
+                notifyDaysBefore = draft.notifyDaysBefore,
+                note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
+                createdAt = now(),
+                updatedAt = now(),
+            )
+            withSpace.copy(
+                reminders = withSpace.reminders + reminder,
+                anchorDays = withSpace.anchorDays + (reminder.id to draft.nextDue.dayOfMonth),
+            ) to reminder
+        }
+    }
+
+    override suspend fun update(reminder: Reminder, draft: ReminderDraft) {
+        validate(draft)
+        store.update { db ->
+            val current = db.requireReminder(reminder.id)
+            val dateChanged = current.nextDue != draft.nextDue.toString()
+            val next = current.copy(
+                title = draft.title.trim(),
+                amount = draft.amount,
+                every = draft.every,
+                unit = draft.unit,
+                nextDue = draft.nextDue.toString(),
+                notifyDaysBefore = draft.notifyDaysBefore,
+                note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
+                finished = if (dateChanged) false else current.finished,
+            )
+            val anchors = if (dateChanged) db.anchorDays + (reminder.id to draft.nextDue.dayOfMonth) else db.anchorDays
+            db.replaceReminder(next).copy(anchorDays = anchors) to Unit
+        }
+    }
+
+    override suspend fun delete(reminder: Reminder) {
+        store.update { db ->
+            db.copy(
+                reminders = db.reminders.filterNot { it.id == reminder.id },
+                reminderLogs = db.reminderLogs - reminder.id,
+                anchorDays = db.anchorDays - reminder.id,
+            ) to Unit
+        }
+    }
+
+    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder =
+        store.update { db ->
+            val current = db.requireReminder(reminder.id)
+            if (current.finished) throw DataException("Este recordatorio ya está hecho", DataException.Kind.INVALID)
+            val user = FakeSeed.currentUser
+            val log = ReminderLog(
+                id = Ids.create("log-"),
+                dueDate = current.nextDue,
+                amount = amount ?: current.amount,
+                note = note?.trim()?.takeIf { it.isNotEmpty() },
+                doneBy = user.id,
+                doneByName = user.name,
+                createdAt = now(),
+            )
+            val every = current.every
+            val unit = current.unit
+            val next = if (every != null && unit != null) {
+                val due = Recurrence.advance(current.dueDate, every, unit, db.anchorDays[current.id])
+                current.copy(nextDue = due.toString(), lastDone = log)
+            } else {
+                current.copy(finished = true, lastDone = log)
+            }
+            val logs = listOf(log) + db.reminderLogs[current.id].orEmpty()
+            db.replaceReminder(next).copy(reminderLogs = db.reminderLogs + (current.id to logs)) to next
+        }
+
+    override suspend fun undo(reminder: Reminder) {
+        store.update { db ->
+            val current = db.requireReminder(reminder.id)
+            val logs = db.reminderLogs[current.id].orEmpty()
+            val last = logs.firstOrNull() ?: throw DataException("No hay nada que deshacer", DataException.Kind.INVALID)
+            val rest = logs.drop(1)
+            val next = current.copy(nextDue = last.dueDate, finished = false, lastDone = rest.firstOrNull())
+            db.replaceReminder(next).copy(reminderLogs = db.reminderLogs + (current.id to rest)) to Unit
+        }
+    }
+
+    override suspend fun history(reminder: Reminder): List<ReminderLog> {
+        store.simulateLatency()
+        return store.load().reminderLogs[reminder.id].orEmpty()
+    }
+
+    private suspend fun changeMembers(space: ReminderSpace, change: (List<SharedMember>) -> List<SharedMember>) {
+        store.update { db ->
+            val (withSpace, current) = db.withSpace(space.kind)
+            val updated = current.copy(members = change(current.members))
+            withSpace.copy(spaces = withSpace.spaces.map { if (it.id == updated.id) updated else it }) to Unit
+        }
+    }
+
+    override suspend fun inviteToSpace(space: ReminderSpace, email: String, role: MemberRole): SharedMember {
+        val normalized = email.trim().lowercase()
+        if (!emailRegex.matches(normalized)) throw DataException("Correo no válido", DataException.Kind.INVALID)
+        if (normalized == FakeSeed.currentUser.email) {
+            throw DataException("No puedes invitarte a ti mismo", DataException.Kind.INVALID)
+        }
+        val member = SharedMember(email = normalized, role = role, status = MemberStatus.PENDING, invitedAt = now())
+        changeMembers(space) { members -> members.filterNot { it.email == normalized } + member }
+        return member
+    }
+
+    override suspend fun removeSpaceMember(space: ReminderSpace, email: String) =
+        changeMembers(space) { members -> members.filterNot { it.email == email } }
+
+    override suspend fun createSpaceInvite(space: ReminderSpace): ShareInvite = store.update { db ->
+        val nowInstant = Instant.now()
+        val valid = db.invites.filter { Instant.parse(it.expiresAt).isAfter(nowInstant) }
+        valid.find { it.spaceId == space.id }?.let { return@update db.copy(invites = valid) to it }
+        val code = Ids.shareCode()
+        val invite = ShareInvite(
+            code = code,
+            url = "arianna://join/$code",
+            spaceId = space.id,
+            expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
+        )
+        db.copy(invites = valid + invite) to invite
     }
 }

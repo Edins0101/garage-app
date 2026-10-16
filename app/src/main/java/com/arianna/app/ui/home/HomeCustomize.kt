@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
@@ -59,6 +60,11 @@ private val HomeSection.info: SectionInfo
             Icons.Outlined.CalendarMonth,
             "Garaje",
             "Días del carro en el garaje y cuánto debes pagar",
+        )
+        HomeSection.PAYMENTS -> SectionInfo(
+            Icons.Outlined.Payments,
+            "Pagos",
+            "Luz, internet, tarjeta: te aviso antes de que venzan",
         )
         HomeSection.SHOPPING -> SectionInfo(
             Icons.Outlined.ShoppingCart,

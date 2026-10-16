@@ -14,6 +14,7 @@ Backend propio en `D:\Projects\garaje-backend` (FastAPI en Render).
 - [docs/PROGRESS.md](docs/PROGRESS.md): qué está hecho, qué falta y la bitácora
 - [docs/NOTIFICACIONES.md](docs/NOTIFICACIONES.md): notificaciones push (Firebase)
 - [docs/PLAN-FOTOS.md](docs/PLAN-FOTOS.md): diseño de las fotos en las listas (catálogo de productos)
+- [docs/PLAN-RECORDATORIOS.md](docs/PLAN-RECORDATORIOS.md): Pagos, Mi hogar y Mi carro (un solo motor de recordatorios)
 
 ## Comandos (desde la raíz del proyecto)
 
@@ -21,6 +22,8 @@ Backend propio en `D:\Projects\garaje-backend` (FastAPI en Render).
 ./gradlew assembleDebug        # compila el APK de debug
 ./gradlew installDebug         # compila e instala en el emulador o teléfono conectado
 ./gradlew assembleRelease      # APK firmado → app/build/outputs/apk/release/app-release.apk
+./gradlew installDebug -Parianna.fakes=true   # con datos falsos en el teléfono (sin backend)
+./gradlew testDebugUnitTest    # tests unitarios (app/src/test)
 ```
 
 En terminal, si `java` no se encuentra: `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`.

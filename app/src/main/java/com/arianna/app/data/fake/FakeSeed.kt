@@ -6,6 +6,9 @@ import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.MemberStatus
+import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderKind
+import com.arianna.app.domain.model.RepeatUnit
 import com.arianna.app.domain.model.SharedMember
 import com.arianna.app.domain.model.User
 import java.time.Instant
@@ -22,7 +25,25 @@ object FakeSeed {
         fun item(id: String, text: String, done: Boolean = false, quantity: String? = null) =
             ChecklistItem(id, text, quantity, done, createdAt = now, updatedAt = now)
 
+        fun payment(id: String, title: String, amount: Double, due: LocalDate) = Reminder(
+            id = id,
+            spaceId = "space-payments",
+            kind = ReminderKind.PAYMENTS,
+            title = title,
+            amount = amount,
+            every = 1,
+            unit = RepeatUnit.MONTH,
+            nextDue = due.toString(),
+            createdAt = now,
+            updatedAt = now,
+        )
+
         return FakeDb(
+            reminders = listOf(
+                payment("r-luz", "Luz", 32.50, today.plusDays(2)),
+                payment("r-internet", "Internet", 28.00, today.plusDays(9)),
+                payment("r-celular", "Plan del celular", 15.00, today.minusDays(1)),
+            ),
             garageDays = listOf(3L, 2L, 1L).map { offset ->
                 GarageDay(
                     date = today.minusDays(offset).toString(),

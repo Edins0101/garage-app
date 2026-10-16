@@ -4,6 +4,12 @@ import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.model.GarageDay
+import com.arianna.app.domain.model.JoinResult
+import com.arianna.app.domain.model.Reminder
+import com.arianna.app.domain.model.ReminderKind
+import com.arianna.app.domain.model.ReminderLog
+import com.arianna.app.domain.model.ReminderSpace
+import com.arianna.app.domain.model.RepeatUnit
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.Payment
@@ -131,8 +137,46 @@ interface SharingRepository {
     suspend fun removeMember(listId: String, email: String)
     /** Reutiliza una invitación vigente si existe. */
     suspend fun createInvite(listId: String): ShareInvite
-    /** Une al usuario actual a la lista del código y la devuelve. */
-    suspend fun joinByCode(code: String): Checklist
+    /** Une al usuario actual a la lista o sección del código; dice cuál para abrirla. */
+    suspend fun joinByCode(code: String): JoinResult
+}
+
+/** Lo que el usuario llena al crear o editar un recordatorio. */
+data class ReminderDraft(
+    val title: String,
+    val amount: Double?,
+    /** null + null = una sola vez. */
+    val every: Int?,
+    val unit: RepeatUnit?,
+    val nextDue: LocalDate,
+    val notifyDaysBefore: Int,
+    val note: String?,
+)
+
+/**
+ * Recordatorios (Pagos, Mi hogar, Mi carro) agrupados en secciones que se comparten completas.
+ * Ver docs/PLAN-RECORDATORIOS.md.
+ */
+interface RemindersRepository {
+    /** Los de mis secciones y de las compartidas conmigo, por fecha de vencimiento. */
+    fun observeReminders(kind: ReminderKind): Flow<List<Reminder>>
+    fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>>
+    suspend fun refresh(kind: ReminderKind)
+
+    /** Lo crea en [spaceId] o, si es null, en la sección propia. */
+    suspend fun create(kind: ReminderKind, draft: ReminderDraft, spaceId: String? = null): Reminder
+    suspend fun update(reminder: Reminder, draft: ReminderDraft)
+    suspend fun delete(reminder: Reminder)
+
+    /** Ya pagué / hecho: guarda el historial y pasa al siguiente vencimiento. Devuelve cómo quedó. */
+    suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder
+    /** Deshace la última marca. */
+    suspend fun undo(reminder: Reminder)
+    suspend fun history(reminder: Reminder): List<ReminderLog>
+
+    suspend fun inviteToSpace(space: ReminderSpace, email: String, role: MemberRole): SharedMember
+    suspend fun removeSpaceMember(space: ReminderSpace, email: String)
+    suspend fun createSpaceInvite(space: ReminderSpace): ShareInvite
 }
 
 /** Error de datos con mensaje listo para mostrar al usuario. */
