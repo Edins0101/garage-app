@@ -22,7 +22,7 @@ App personal para Android con dos funciones principales:
 - Función principal: llevar el control de lo que pagas, debes y compras en el día a día,
   y compartirlo con las personas con quienes lo vives.
 - Ideas en orden de prioridad: 1) pagos recurrentes con recordatorios ("Ya pagué", historial,
-  compartidos); 2) generalizar el garaje a **contadores** por día (niñera, expreso, gimnasio…);
+  compartidos); 2) ✅ generalizar el garaje a **contadores** por día (niñera, expreso, gimnasio, días trabajados);
   3) módulo "Mi carro" (matrícula por dígito de placa, mantenimiento, gastos). Desde v0.6 Pagos, Mi hogar, Mi carro
   y Otros viven en una sola pantalla "Recordatorios" con filtros.
   Más adelante: precios en las listas, gastos compartidos, widget y, quizá, funciones con IA.
