@@ -62,7 +62,7 @@
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
 
 - [x] Nuevo nombre: **Arianna** (paquete `com.arianna.app`, deep links `arianna://`, ícono "A" con estrella, saludo con resumen de pendientes)
-- [ ] Registrar `com.arianna.app` en Firebase y poner el nuevo `google-services.json` en `app/` (sin él no hay notificaciones)
+- [x] Registrar `com.arianna.app` en Firebase y poner el nuevo `google-services.json` en `app/`
 - [ ] Cambiar `EMAIL_FROM_NAME` a `Arianna` en Render (si estaba puesto como `Garaje`)
 - [ ] Pagos recurrentes con recordatorios
 - [ ] Contadores por día (generalizar el garaje)
@@ -92,3 +92,4 @@
 
 ### 2026-10-16
 - Cambio de nombre a **Arianna** (v0.3.0): paquete y `applicationId` `com.arianna.app`, deep links `arianna://`, ícono nuevo ("A" blanca con estrella dorada, también en la barra de notificaciones), marca en el inicio y el acceso, y saludo de Arianna con el resumen de pendientes según las secciones visibles. Backend: correos con el nombre nuevo y enlaces de invitación `arianna://join/`. El `google-services.json` viejo (paquete `com.garaje.app`) se movió a `D:\Projects\garaje-keys\google-services.garaje-old.json`.
+- Firebase: `com.arianna.app` registrada en el proyecto `garage-21c4c` (el json trae las dos apps). Probado en producción con el APK release: Beto agrega «Pan» y a Ana le llega "Súper compartido — Beto agregó «Pan»".
