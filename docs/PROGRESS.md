@@ -57,7 +57,7 @@
 - [ ] Configurar en Render las variables `STORAGE_*` (endpoint, región, bucket, claves de Supabase)
 - [ ] Rotar las claves S3 de Supabase y la contraseña de su base (se compartieron en el chat)
 - [x] Notificaciones push (FCM): aviso al agregar elementos o unirse a una lista compartida ([NOTIFICACIONES.md](NOTIFICACIONES.md))
-- [ ] Configurar Firebase: `google-services.json` en la app y `PUSH_PROVIDER`/`FIREBASE_SERVICE_ACCOUNT` en Render
+- [x] Firebase configurado (proyecto `garage-21c4c`): notificaciones probadas de punta a punta en producción
 - [ ] Copia local en la app para funcionar sin conexión
 - [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
 
@@ -81,3 +81,4 @@
 - Primer APK de release firmado (v0.1.0, ~2 MB con R8). La llave de firma quedó en `D:\Projects\garaje-keys` (fuera del repo, hay que respaldarla). Probado en el emulador contra producción: inicio de sesión, inicio, marcar día, crear lista y agregar elemento.
 - Pantallas pequeñas y letra grande: los mosaicos ya no tienen proporción fija y sus textos se achican solos (`TextAutoSize`) en vez de cortarse. Lo mismo en el botón de tarifa del garaje y en las pestañas del acceso. Probado a 720×1280 y con la letra del sistema al 130 %.
 - Notificaciones push con FCM: backend (tabla devices, envío en segundo plano, 4 tests nuevos, 30 en total) y app (registro, servicio, deep link a la lista, permiso en Android 13+). Probado sin Firebase: la app funciona igual y el deep link abre la lista. Falta probar el envío real cuando exista el proyecto de Firebase.
+- v0.2.0: notificaciones funcionando en producción (Firebase `garage-21c4c`). Probado: Beto agrega «Huevos» a una lista compartida, a Ana le llega la notificación y al tocarla se abre la lista. Los avisos de API obsoleta de firebase-messaging 25.1+ se silenciaron con una nota (migración a FID pendiente).

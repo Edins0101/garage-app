@@ -24,8 +24,8 @@ android {
         applicationId = "com.garaje.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
         buildConfigField("boolean", "USE_FAKES", "false")

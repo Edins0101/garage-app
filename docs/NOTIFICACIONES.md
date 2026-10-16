@@ -31,3 +31,10 @@ Cambio en lista ─▶ backend busca teléfonos de los demás miembros ─▶ FC
 5. Recompilar la app (`./gradlew assembleRelease`).
 
 Mientras `PUSH_PROVIDER=console`, los avisos solo se escriben en los logs de Render.
+
+## Pendiente
+
+- Migrar al registro por **ID de instalación (FID)** de firebase-messaging 25.1+ (`onRegistered()` / `register()`),
+  que reemplaza a `getToken`/`onNewToken`/`deleteToken` (hoy obsoletos pero funcionales). Requiere revisar cómo
+  se envía desde el servidor a un FID antes de cambiar el backend.
+

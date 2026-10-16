@@ -1,3 +1,10 @@
+/*
+ * Nota (firebase-messaging 25.1+): token/deleteToken/onNewToken están marcados como obsoletos a favor
+ * del registro por ID de instalación (onRegistered/register). Siguen funcionando; se migrará cuando
+ * la documentación del envío desde el servidor con FID esté completa (ver docs/NOTIFICACIONES.md).
+ */
+@file:Suppress("DEPRECATION")
+
 package com.garaje.app.data.push
 
 import android.content.Context
