@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arianna.app.domain.model.CountFrom
@@ -130,59 +131,69 @@ private fun DateRow(label: String, date: LocalDate, onChange: (LocalDate) -> Uni
     }
 }
 
-/** Crear o editar un recordatorio. */
+/** Crear o editar un recordatorio. Al crear se elige la categoría (y, si hay varias, de quién). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReminderEditDialog(
-    kind: ReminderKind,
-    copy: KindCopy,
     reminder: Reminder?,
-    spaces: List<ReminderSpace>,
+    initialKind: ReminderKind,
+    spacesFor: (ReminderKind) -> List<ReminderSpace>,
     myId: String,
     busy: Boolean,
-    onSave: (ReminderDraft, spaceId: String?) -> Unit,
+    onSave: (ReminderKind, ReminderDraft, spaceId: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var kind by rememberSaveable { mutableStateOf(reminder?.kind ?: initialKind) }
+    val copy = KindCopy.of(kind)
     var title by rememberSaveable { mutableStateOf(reminder?.title.orEmpty()) }
     var amount by rememberSaveable { mutableStateOf(reminder?.amount?.asInput().orEmpty()) }
     var dueText by rememberSaveable { mutableStateOf((reminder?.dueDate ?: LocalDate.now().plusDays(7)).toString()) }
-    var repeatIndex by rememberSaveable {
-        mutableStateOf(
-            if (reminder == null) 0
-            else repeatOptions.indexOf(reminder.every to reminder.unit).takeIf { it >= 0 } ?: -1,
-        )
-    }
+    var every by rememberSaveable { mutableStateOf(if (reminder == null) 1 else reminder.every) }
+    var unit by rememberSaveable { mutableStateOf(if (reminder == null) RepeatUnit.MONTH else reminder.unit) }
     var notice by rememberSaveable { mutableStateOf(reminder?.notifyDaysBefore ?: 3) }
     var note by rememberSaveable { mutableStateOf(reminder?.note.orEmpty()) }
     var countFrom by rememberSaveable { mutableStateOf(reminder?.countFrom ?: CountFrom.defaultFor(kind)) }
-    var spaceId by rememberSaveable { mutableStateOf(spaces.find { it.ownerId == myId }?.id) }
+    var everyKm by rememberSaveable { mutableStateOf(reminder?.everyKm?.toString().orEmpty()) }
+    val spaces = spacesFor(kind)
+    var spaceId by rememberSaveable(kind) { mutableStateOf(spaces.find { it.ownerId == myId }?.id) }
     val amountValue = Money.parse(amount)
     val amountOk = amount.isBlank() || amountValue != null
+    val kmValue = everyKm.toIntOrNull()
+    val kmOk = everyKm.isBlank() || (kmValue != null && kmValue in 100..200_000)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.Sheet,
         titleContentColor = Palette.Ink,
         textContentColor = Palette.InkSoft,
-        title = { Text(if (reminder == null) copy.newLabel else "Editar «${reminder.title}»") },
+        title = { Text(if (reminder == null) "Nuevo recordatorio" else "Editar «${reminder.title}»") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (reminder == null && copy.suggestions.isNotEmpty()) {
-                    Text("Ideas rápidas", fontSize = 12.sp, color = Palette.InkSoft)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        copy.suggestions.forEach { suggestion ->
-                            FilterChip(
-                                selected = title == suggestion.title,
-                                onClick = {
-                                    title = suggestion.title
-                                    repeatIndex = repeatOptions.indexOf(suggestion.every to suggestion.unit)
-                                },
-                                label = { ChipText(suggestion.title) },
-                                colors = chipColors(),
-                            )
+                if (reminder == null) {
+                    KindChips(selected = kind, onSelect = {
+                        kind = it
+                        countFrom = CountFrom.defaultFor(it)
+                    })
+                    if (copy.suggestions.isNotEmpty()) {
+                        Text("Ideas rápidas", fontSize = 12.sp, color = Palette.InkSoft)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            copy.suggestions.forEach { suggestion ->
+                                FilterChip(
+                                    selected = title == suggestion.title,
+                                    onClick = {
+                                        title = suggestion.title
+                                        every = suggestion.every
+                                        unit = suggestion.unit
+                                        countFrom = suggestion.countFrom ?: CountFrom.defaultFor(kind)
+                                        everyKm = suggestion.everyKm?.toString().orEmpty()
+                                    },
+                                    label = { ChipText(suggestion.title) },
+                                    colors = chipColors(),
+                                )
+                            }
                         }
                     }
                 }
@@ -197,27 +208,30 @@ fun ReminderEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 MoneyField(amount, { amount = it }, "${copy.amountLabel} aproximado (opcional)", Modifier.fillMaxWidth())
-                DateRow(if (reminder == null) "Próximo vencimiento" else "Vence", LocalDate.parse(dueText)) {
+                DateRow(if (reminder == null) "Próxima fecha" else "Vence", LocalDate.parse(dueText)) {
                     dueText = it.toString()
                 }
 
                 Text("Se repite", fontSize = 12.sp, color = Palette.InkSoft)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Si se creó con otra repetición (desde otra versión), se muestra tal cual.
-                    if (repeatIndex == -1 && reminder != null) {
-                        FilterChip(true, {}, { ChipText(Recurrence.label(reminder.every, reminder.unit)) }, colors = chipColors())
+                    // Una repetición que no está entre las opciones (ej. cada 5 años) se muestra tal cual.
+                    if ((every to unit) !in repeatOptions) {
+                        FilterChip(true, {}, { ChipText(Recurrence.label(every, unit)) }, colors = chipColors())
                     }
-                    repeatOptions.forEachIndexed { index, (every, unit) ->
+                    repeatOptions.forEach { option ->
                         FilterChip(
-                            selected = repeatIndex == index,
-                            onClick = { repeatIndex = index },
-                            label = { ChipText(Recurrence.label(every, unit)) },
+                            selected = (every to unit) == option,
+                            onClick = {
+                                every = option.first
+                                unit = option.second
+                            },
+                            label = { ChipText(Recurrence.label(option.first, option.second)) },
                             colors = chipColors(),
                         )
                     }
                 }
 
-                if (repeatOptions.getOrNull(repeatIndex)?.first != null || (repeatIndex == -1 && reminder?.repeats == true)) {
+                if (every != null && unit != null) {
                     Text("El siguiente se cuenta desde", fontSize = 12.sp, color = Palette.InkSoft)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
@@ -233,6 +247,20 @@ fun ReminderEditDialog(
                             colors = chipColors(),
                         )
                     }
+                }
+
+                if (kind == ReminderKind.CAR) {
+                    OutlinedTextField(
+                        value = everyKm,
+                        onValueChange = { input -> everyKm = input.filter(Char::isDigit).take(6) },
+                        label = { Text("O cada tantos km (opcional)") },
+                        placeholder = { Text("Ej. 5000") },
+                        suffix = { Text("km") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = appFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 Text("Avisarme", fontSize = 12.sp, color = Palette.InkSoft)
@@ -265,19 +293,19 @@ fun ReminderEditDialog(
                     value = note,
                     onValueChange = { note = it.take(500) },
                     label = { Text("Nota (opcional)") },
-                    placeholder = { Text("Ej. número de cuenta o dónde se paga") },
+                    placeholder = { Text("Ej. número de cuenta, taller o teléfono") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     colors = appFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (!amountOk) Text("El monto no es válido", color = Palette.Danger, fontSize = 13.sp)
+                if (!kmOk) Text("Los km deben estar entre 100 y 200.000", color = Palette.Danger, fontSize = 13.sp)
             }
         },
         confirmButton = {
             TextButton(
-                enabled = title.isNotBlank() && amountOk && !busy,
+                enabled = title.isNotBlank() && amountOk && kmOk && !busy,
                 onClick = {
-                    val (every, unit) = repeatOptions.getOrNull(repeatIndex) ?: (reminder?.every to reminder?.unit)
                     val draft = ReminderDraft(
                         title = title,
                         amount = amountValue,
@@ -287,8 +315,9 @@ fun ReminderEditDialog(
                         notifyDaysBefore = notice,
                         note = note,
                         countFrom = countFrom,
+                        everyKm = kmValue.takeIf { kind == ReminderKind.CAR },
                     )
-                    onSave(draft, spaceId)
+                    onSave(kind, draft, spaceId)
                 },
             ) { Text(if (busy) "Guardando…" else "Guardar", color = Palette.Violet) }
         },
@@ -298,17 +327,18 @@ fun ReminderEditDialog(
     )
 }
 
-/** "Ya pagué": monto real (por defecto el aproximado) y nota. */
+/** "Ya pagué" / "Hecho": monto real (por defecto el aproximado), nota y, en Mi carro, el kilometraje. */
 @Composable
 fun ReminderDoneDialog(
-    copy: KindCopy,
     reminder: Reminder,
     busy: Boolean,
-    onConfirm: (amount: Double?, note: String) -> Unit,
+    onConfirm: (amount: Double?, note: String, odometer: Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val copy = KindCopy.of(reminder.kind)
     var amount by rememberSaveable { mutableStateOf(reminder.amount?.asInput().orEmpty()) }
     var note by rememberSaveable { mutableStateOf("") }
+    var odometer by rememberSaveable { mutableStateOf("") }
     val amountValue = Money.parse(amount)
     val amountOk = amount.isBlank() || amountValue != null
 
@@ -320,8 +350,25 @@ fun ReminderDoneDialog(
         title = { Text("${copy.doneTitle}: «${reminder.title}»") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Vencimiento del ${Dates.longDay(reminder.dueDate)}.", fontSize = 13.sp)
-                MoneyField(amount, { amount = it }, if (reminder.amount == null) "${copy.amountLabel} (opcional)" else copy.amountLabel, Modifier.fillMaxWidth())
+                Text("Fecha del ${Dates.longDay(reminder.dueDate)}.", fontSize = 13.sp)
+                MoneyField(
+                    amount,
+                    { amount = it },
+                    if (reminder.amount == null) "${copy.amountLabel} (opcional)" else copy.amountLabel,
+                    Modifier.fillMaxWidth(),
+                )
+                if (reminder.kind == ReminderKind.CAR) {
+                    OutlinedTextField(
+                        value = odometer,
+                        onValueChange = { input -> odometer = input.filter(Char::isDigit).take(7) },
+                        label = { Text("Kilometraje actual (opcional)") },
+                        suffix = { Text("km") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = appFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it.take(200) },
@@ -332,12 +379,17 @@ fun ReminderDoneDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Recurrence.nextAfterDone(reminder, LocalDate.now())?.let { next ->
-                    Text("Después te aviso para el ${Dates.longDay(next)}.", fontSize = 13.sp)
+                    val km = reminder.everyKm?.let { every -> odometer.toIntOrNull()?.plus(every) }
+                    Text(
+                        "Después te aviso para el ${Dates.longDay(next)}" +
+                            (km?.let { " (o a los ${formatKm(it)})" } ?: "") + ".",
+                        fontSize = 13.sp,
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = amountOk && !busy, onClick = { onConfirm(amountValue, note) }) {
+            TextButton(enabled = amountOk && !busy, onClick = { onConfirm(amountValue, note, odometer.toIntOrNull()) }) {
                 Text(if (busy) "Guardando…" else copy.doneLabel, color = Palette.Violet)
             }
         },
@@ -347,11 +399,10 @@ fun ReminderDoneDialog(
     )
 }
 
-/** Detalle: datos, acciones e historial de pagos. */
+/** Detalle: datos, acciones e historial. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReminderDetailSheet(
-    copy: KindCopy,
     reminder: Reminder,
     owner: String?,
     canEdit: Boolean,
@@ -363,6 +414,7 @@ fun ReminderDetailSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val copy = KindCopy.of(reminder.kind)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -379,8 +431,10 @@ fun ReminderDetailSheet(
             Column {
                 Text(reminder.title, style = MaterialTheme.typography.headlineSmall, color = Palette.Ink)
                 val facts = listOfNotNull(
+                    copy.title,
                     reminder.amount?.let { "≈ ${Money.format(it)}" },
-                    Recurrence.label(reminder.every, reminder.unit),
+                    Recurrence.label(reminder.every, reminder.unit) +
+                        (reminder.everyKm?.let { " o ${formatKm(it)}" } ?: ""),
                     "Aviso: ${Recurrence.noticeLabel(reminder.notifyDaysBefore).lowercase()}",
                     owner,
                 )
@@ -392,7 +446,7 @@ fun ReminderDetailSheet(
                     reminder.finished -> "Hecho"
                     Recurrence.daysUntil(reminder) > 6 -> "Vence el ${Dates.longDay(reminder.dueDate)}"
                     else -> "${Recurrence.dueLabel(reminder)} · ${Dates.longDay(reminder.dueDate)}"
-                },
+                } + (reminder.nextKm?.let { " · o a los ${formatKm(it)}" } ?: ""),
                 color = if (overdue) Palette.Danger else Palette.Violet,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -425,7 +479,11 @@ fun ReminderDetailSheet(
                                 color = Palette.Ink,
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            val by = listOfNotNull(log.doneByName?.let { "Marcó $it" }, log.note).joinToString(" · ")
+                            val by = listOfNotNull(
+                                log.odometer?.let(::formatKm),
+                                log.doneByName?.let { "Marcó $it" },
+                                log.note,
+                            ).joinToString(" · ")
                             if (by.isNotEmpty()) Text(by, color = Palette.InkSoft, fontSize = 13.sp)
                         }
                         log.amount?.let { Text(Money.format(it), color = Palette.Violet, fontWeight = FontWeight.Bold) }

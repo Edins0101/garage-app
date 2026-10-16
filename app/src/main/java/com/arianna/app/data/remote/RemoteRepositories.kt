@@ -310,21 +310,22 @@ class RemoteSharingRepository(
     }
 }
 
-@Serializable private data class DoneBody(val amount: String? = null, val note: String? = null)
+@Serializable private data class DoneBody(val amount: String? = null, val note: String? = null, val odometer: Int? = null)
 
 class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepository {
-    private val reminders = MutableStateFlow<Map<ReminderKind, List<Reminder>>>(emptyMap())
-    private val spaces = MutableStateFlow<Map<ReminderKind, List<ReminderSpace>>>(emptyMap())
+    // Una sola consulta trae todas las categorías; cada pantalla filtra la suya.
+    private val reminders = MutableStateFlow<List<Reminder>>(emptyList())
+    private val spaces = MutableStateFlow<List<ReminderSpace>>(emptyList())
 
-    override fun observeReminders(kind: ReminderKind): Flow<List<Reminder>> =
-        reminders.map { it[kind].orEmpty() }.onStart { refresh(kind) }
+    override fun observeReminders(kind: ReminderKind?): Flow<List<Reminder>> =
+        reminders.map { all -> all.filter { kind == null || it.kind == kind } }.onStart { refresh() }
 
-    override fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>> = spaces.map { it[kind].orEmpty() }
+    override fun observeSpaces(kind: ReminderKind?): Flow<List<ReminderSpace>> =
+        spaces.map { all -> all.filter { kind == null || it.kind == kind } }
 
-    override suspend fun refresh(kind: ReminderKind) {
-        val query = "?kind=${kind.apiName}"
-        spaces.value += kind to api.request("GET", "/spaces$query", null, ListSerializer(ReminderSpace.serializer()))!!
-        reminders.value += kind to api.request("GET", "/reminders$query", null, ListSerializer(Reminder.serializer()))!!
+    override suspend fun refresh() {
+        spaces.value = api.request("GET", "/spaces", null, ListSerializer(ReminderSpace.serializer()))!!
+        reminders.value = api.request("GET", "/reminders", null, ListSerializer(Reminder.serializer()))!!
     }
 
     /** Todos los campos, con null explícito: así al editar se puede borrar el monto o la repetición. */
@@ -336,6 +337,7 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
         put("nextDue", draft.nextDue.toString())
         put("notifyDaysBefore", draft.notifyDaysBefore)
         put("countFrom", draft.countFrom.name.lowercase())
+        put("everyKm", draft.everyKm)
         put("note", draft.note?.trim()?.takeIf { it.isNotEmpty() })
     }
 
@@ -345,30 +347,30 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
             if (spaceId != null) put("spaceId", spaceId)
         })
         val reminder = api.request("POST", "/reminders", body.toString(), Reminder.serializer())!!
-        refresh(kind)
+        refresh()
         return reminder
     }
 
     override suspend fun update(reminder: Reminder, draft: ReminderDraft) {
         api.request("PATCH", "/reminders/${enc(reminder.id)}", draftJson(draft).toString(), Reminder.serializer())
-        refresh(reminder.kind)
+        refresh()
     }
 
     override suspend fun delete(reminder: Reminder) {
         api.request<Unit>("DELETE", "/reminders/${enc(reminder.id)}", null, null)
-        refresh(reminder.kind)
+        refresh()
     }
 
-    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder {
-        val body = DoneBody(amount?.let(Money::toApi), note?.trim()?.takeIf { it.isNotEmpty() })
+    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?, odometer: Int?): Reminder {
+        val body = DoneBody(amount?.let(Money::toApi), note?.trim()?.takeIf { it.isNotEmpty() }, odometer)
         val updated = api.request("POST", "/reminders/${enc(reminder.id)}/done", api.body(body), Reminder.serializer())!!
-        refresh(reminder.kind)
+        refresh()
         return updated
     }
 
     override suspend fun undo(reminder: Reminder) {
         api.request("POST", "/reminders/${enc(reminder.id)}/undo", null, Reminder.serializer())
-        refresh(reminder.kind)
+        refresh()
     }
 
     override suspend fun history(reminder: Reminder): List<ReminderLog> =
@@ -378,13 +380,13 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
         val member = api.request(
             "POST", "/spaces/${enc(space.id)}/members", api.body(InviteBody(email, role)), SharedMember.serializer(),
         )!!
-        refresh(space.kind)
+        refresh()
         return member
     }
 
     override suspend fun removeSpaceMember(space: ReminderSpace, email: String) {
         api.request<Unit>("DELETE", "/spaces/${enc(space.id)}/members/${enc(email)}", null, null)
-        refresh(space.kind)
+        refresh()
     }
 
     override suspend fun createSpaceInvite(space: ReminderSpace): ShareInvite =

@@ -67,7 +67,8 @@
 - [x] Pagos recurrentes con recordatorios ([PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md)): sección compartible, "Ya pagué", historial, deshacer y avisos desde el teléfono
 - [x] Mi hogar (mantenimientos: aire, lavadora, fumigación) sobre el mismo motor de recordatorios
 - [ ] Contadores por día (generalizar el garaje)
-- [ ] Módulo "Mi carro" (matrícula, pico y placa, mantenimiento)
+- [x] Módulo "Mi carro" (matrícula por placa, mantenimiento por fecha o km). Pico y placa: no (ver PLAN-RECORDATORIOS)
+- [x] Una sola pantalla "Recordatorios" con filtros y categoría "Otros"
 
 ## Bitácora
 
@@ -98,3 +99,4 @@
 - v0.4.0 probado en producción con el APK release: Beto comparte sus Pagos con Ana; a Ana le llega el aviso local «Internet» vence mañana, lo ve como "De Beto" y lo marca pagado; Beto lo ve en su historial; Beto marca otro y a Ana le llega el push "Beto marcó «Internet» como pagado". Usuarios de prueba borrados.
 - Mi hogar (v0.5.0): sección de mantenimientos sobre el mismo motor. Nuevo `countFrom` (migración `c4d2a6f81e35`, probada en Postgres local): los mantenimientos cuentan el siguiente desde el día que se marcan. Ideas rápidas en Pagos y Mi hogar, mosaico y sección en el inicio (con más de 6 mosaicos el menú pasa a 4 columnas), avisos locales también para Mi hogar. 39 tests en el backend y 4 en la app. Probado en el emulador con datos falsos: crear "Limpiar el aire" desde una idea, marcar hecho (siguiente: 16 ene) y abrir desde el deep link.
 - v0.5.0 probado en producción con el APK release: "Limpiar el aire" cada 3 meses que vencía el 10 oct, marcado el 16 oct → siguiente 16 ene. Usuario de prueba borrado.
+- Recordatorios + Mi carro (v0.6.0): Pagos y Mi hogar pasan a una sola pantalla "Recordatorios" con filtros (Todos, Pagos, Mi hogar, Mi carro, Otros) y un solo mosaico en el inicio (las preferencias viejas se migran solas). Mi carro: matrícula por último dígito de la placa, `everyKm` y `odometer` (migración `e7a91b3c5d02`), ideas rápidas por categoría, "Otros" para cumpleaños y citas. El backend acepta `kind` opcional y la app trae todo en una consulta. 40 tests en el backend, 5 en la app. Probado en el emulador con datos falsos: placa 0 → matrícula 1 nov; aceite marcado a los 45.300 km → "16 ene o a los 50.300 km".

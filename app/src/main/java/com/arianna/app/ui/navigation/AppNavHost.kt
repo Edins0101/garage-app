@@ -35,7 +35,7 @@ data class ListsRoute(
 @Serializable
 data class ListDetailRoute(val id: String)
 
-/** kind: "payments" | "home" | "car". También se abre con arianna://reminders/payments (avisos). */
+/** kind: "all" | "payments" | "home" | "car" | "other". También se abre con arianna://reminders/payments (avisos). */
 @Serializable
 data class RemindersRoute(val kind: String)
 
@@ -54,7 +54,7 @@ fun AppNavHost(navController: NavHostController) {
         composable<HomeRoute> {
             HomeScreen(
                 onOpenGarage = { navController.navigate(GarageRoute) },
-                onOpenReminders = { kind -> navController.navigate(RemindersRoute(kind.apiName)) },
+                onOpenReminders = { kind -> navController.navigate(RemindersRoute(kind?.apiName ?: "all")) },
                 onOpenLists = { route -> navController.navigate(route) },
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
             )
@@ -66,7 +66,7 @@ fun AppNavHost(navController: NavHostController) {
             deepLinks = listOf(navDeepLink<RemindersRoute>(basePath = "arianna://reminders")),
         ) { entry ->
             RemindersScreen(
-                kind = ReminderKind.fromApi(entry.toRoute<RemindersRoute>().kind),
+                initialFilter = ReminderKind.fromApi(entry.toRoute<RemindersRoute>().kind),
                 onBack = { if (!navController.popBackStack()) navController.navigate(HomeRoute) },
             )
         }
@@ -91,7 +91,7 @@ fun AppNavHost(navController: NavHostController) {
                 code = entry.toRoute<JoinRoute>().code,
                 onJoined = { result ->
                     val target: Any = result.listId?.let(::ListDetailRoute)
-                        ?: RemindersRoute(result.kind?.apiName ?: ReminderKind.PAYMENTS.apiName)
+                        ?: RemindersRoute(result.kind?.apiName ?: "all")
                     navController.navigate(target) {
                         popUpTo<JoinRoute> { inclusive = true }
                     }

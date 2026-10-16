@@ -5,6 +5,7 @@ import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.MemberRole
+import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.MemberStatus
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
@@ -43,6 +44,19 @@ object FakeSeed {
                 payment("r-luz", "Luz", 32.50, today.plusDays(2)),
                 payment("r-internet", "Internet", 28.00, today.plusDays(9)),
                 payment("r-celular", "Plan del celular", 15.00, today.minusDays(1)),
+                payment("r-aceite", "Cambio de aceite", 45.00, today.plusDays(20)).copy(
+                    spaceId = "space-car",
+                    kind = ReminderKind.CAR,
+                    every = 3,
+                    countFrom = CountFrom.DONE,
+                    everyKm = 5000,
+                ),
+                payment("r-cumple", "Cumpleaños de mamá", 0.0, today.plusDays(5)).copy(
+                    spaceId = "space-other",
+                    kind = ReminderKind.OTHER,
+                    amount = null,
+                    unit = RepeatUnit.YEAR,
+                ),
             ),
             garageDays = listOf(3L, 2L, 1L).map { offset ->
                 GarageDay(

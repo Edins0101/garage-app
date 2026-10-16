@@ -74,6 +74,8 @@ fun ShareSheet(
     intro: String? = null,
     codeHint: String = "La otra persona lo escribe en Listas → Unirme para ver esta lista.",
     emptyMembers: String = "Todavía nadie más ve esta lista.",
+    /** Contenido debajo del título (ej. elegir qué categoría compartir). */
+    header: @Composable ColumnScope.() -> Unit = {},
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     var email by rememberSaveable { mutableStateOf("") }
@@ -94,6 +96,7 @@ fun ShareSheet(
         ) {
             Text(title, style = MaterialTheme.typography.headlineSmall, color = Palette.Ink)
             if (intro != null) Text(intro, color = Palette.InkSoft, fontSize = 14.sp)
+            header()
 
             if (demoMode) {
                 Text(

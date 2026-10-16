@@ -181,18 +181,20 @@ data class JoinResult(
 
 // ---------------------------------------------------------------- recordatorios (docs/PLAN-RECORDATORIOS.md)
 
-/** Sección de recordatorios. Por ahora la app muestra Pagos; Mi hogar y Mi carro usan el mismo motor. */
+/** Categoría de un recordatorio. Cada una es una sección que se comparte por separado. */
 @Serializable
 enum class ReminderKind {
     @SerialName("payments") PAYMENTS,
     @SerialName("home") HOME,
-    @SerialName("car") CAR;
+    @SerialName("car") CAR,
+    @SerialName("other") OTHER;
 
     /** Como va en la API y en los deep links (arianna://reminders/payments). */
     val apiName: String get() = name.lowercase()
 
     companion object {
-        fun fromApi(value: String?): ReminderKind = entries.find { it.apiName == value } ?: PAYMENTS
+        /** null si no es una categoría (ej. "all" = todas). */
+        fun fromApi(value: String?): ReminderKind? = entries.find { it.apiName == value }
     }
 }
 
@@ -206,7 +208,8 @@ enum class CountFrom {
     @SerialName("done") DONE;
 
     companion object {
-        fun defaultFor(kind: ReminderKind) = if (kind == ReminderKind.PAYMENTS) DUE else DONE
+        /** Pagos y Otros (cumpleaños, cédula) tienen fecha fija; los mantenimientos, desde que se hicieron. */
+        fun defaultFor(kind: ReminderKind) = if (kind == ReminderKind.HOME || kind == ReminderKind.CAR) DONE else DUE
     }
 }
 
@@ -226,6 +229,8 @@ data class ReminderLog(
     val dueDate: String,
     val amount: Double? = null,
     val note: String? = null,
+    /** Kilometraje cuando se hizo (Mi carro). */
+    val odometer: Int? = null,
     val doneBy: String? = null,
     val doneByName: String? = null,
     val createdAt: String,
@@ -253,6 +258,8 @@ data class Reminder(
     val nextDue: String,
     val notifyDaysBefore: Int = 2,
     val countFrom: CountFrom = CountFrom.DUE,
+    /** Mi carro: también cada tantos km (solo informativo; los avisos son por fecha). */
+    val everyKm: Int? = null,
     val note: String? = null,
     /** Una sola vez y ya hecho. */
     val finished: Boolean = false,
@@ -262,6 +269,9 @@ data class Reminder(
 ) {
     val dueDate: LocalDate get() = LocalDate.parse(nextDue)
     val repeats: Boolean get() = every != null && unit != null
+
+    /** A qué kilometraje toca, según el último registrado. */
+    val nextKm: Int? get() = everyKm?.let { km -> lastDone?.odometer?.plus(km) }
 }
 
 /** Sección (propia o de otra persona) con quienes la comparten. */

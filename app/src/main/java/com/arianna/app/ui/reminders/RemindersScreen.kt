@@ -2,8 +2,11 @@ package com.arianna.app.ui.reminders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -11,14 +14,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.GroupAdd
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,19 +70,19 @@ import com.arianna.app.ui.theme.Palette
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
 import com.arianna.app.util.Recurrence
-import java.time.YearMonth
+import java.text.NumberFormat
 
+/** Recordatorios de todas las categorías, con filtros. [initialFilter] null = Todos. */
 @Composable
-fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
-    val viewModel = appViewModel(key = "reminders-${kind.apiName}") { container ->
+fun RemindersScreen(initialFilter: ReminderKind?, onBack: () -> Unit) {
+    val viewModel = appViewModel(key = "reminders-${initialFilter?.apiName ?: "all"}") { container ->
         val user = container.auth.session.value?.user
-        RemindersViewModel(kind, container.reminders, user?.id.orEmpty(), user?.email.orEmpty(), container.useFakes)
+        RemindersViewModel(initialFilter, container.reminders, user?.id.orEmpty(), user?.email.orEmpty(), container.useFakes)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     CollectMessages(viewModel, snackbar)
-    val copy = state.copy
 
     CosmicBackground {
         Scaffold(
@@ -89,14 +98,17 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        TopBar(title = copy.title, overline = copy.overline, onBack = onBack) {
-                            if (state.ownSpace != null) {
-                                IconButton(onClick = { viewModel.open(ReminderDialog.Share) }) {
-                                    Icon(Icons.Outlined.GroupAdd, contentDescription = "Compartir", tint = Palette.OnDark)
-                                }
+                        TopBar(
+                            title = "Recordatorios",
+                            overline = state.filter?.let { KindCopy.of(it).title } ?: "Todo en un lugar",
+                            onBack = onBack,
+                        ) {
+                            IconButton(onClick = { viewModel.open(ReminderDialog.Share(state.defaultKind)) }) {
+                                Icon(Icons.Outlined.GroupAdd, contentDescription = "Compartir", tint = Palette.OnDark)
                             }
                         }
-                        SummaryCard(state, onNew = { viewModel.open(ReminderDialog.Edit(null)) })
+                        FilterRow(selected = state.filter, onSelect = viewModel::setFilter)
+                        SummaryCard(state, onNew = { viewModel.open(ReminderDialog.Edit(null, state.defaultKind)) })
                         Spacer(Modifier.height(10.dp))
                     }
                 },
@@ -111,8 +123,12 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
                         }
                         return@ScrollingSheetLayout
                     }
+                    if (state.suggestPlate) {
+                        PlateCard(onDigit = viewModel::createPlateReminder, busy = state.busy)
+                        Spacer(Modifier.height(24.dp))
+                    }
                     if (state.reminders.isEmpty()) {
-                        EmptyState(copy, onNew = { viewModel.open(ReminderDialog.Edit(null)) })
+                        EmptyState(state.filter, onNew = { viewModel.open(ReminderDialog.Edit(null, state.defaultKind)) })
                     }
                     ReminderGroup("Vencidos", state.overdue, state, viewModel)
                     ReminderGroup("Próximos 7 días", state.soon, state, viewModel)
@@ -126,32 +142,29 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
 
     when (val dialog = state.dialog) {
         is ReminderDialog.Edit -> ReminderEditDialog(
-            kind = state.kind,
-            copy = copy,
             reminder = dialog.reminder,
-            spaces = state.writableSpaces,
+            initialKind = dialog.kind,
+            spacesFor = state::writableSpaces,
             myId = state.myId,
             busy = state.busy,
-            onSave = { draft, spaceId -> viewModel.save(dialog.reminder, draft, spaceId) },
+            onSave = { kind, draft, spaceId -> viewModel.save(dialog.reminder, kind, draft, spaceId) },
             onDismiss = viewModel::close,
         )
         is ReminderDialog.Done -> ReminderDoneDialog(
-            copy = copy,
             reminder = dialog.reminder,
             busy = state.busy,
-            onConfirm = { amount, note -> viewModel.markDone(dialog.reminder, amount, note) },
+            onConfirm = { amount, note, odometer -> viewModel.markDone(dialog.reminder, amount, note, odometer) },
             onDismiss = viewModel::close,
         )
         is ReminderDialog.Detail -> state.detail?.let { reminder ->
             ReminderDetailSheet(
-                copy = copy,
                 reminder = reminder,
                 owner = state.ownerLabel(reminder),
                 canEdit = state.canEdit(reminder),
                 history = state.history,
                 busy = state.busy,
                 onDone = { viewModel.open(ReminderDialog.Done(reminder)) },
-                onEdit = { viewModel.open(ReminderDialog.Edit(reminder)) },
+                onEdit = { viewModel.open(ReminderDialog.Edit(reminder, reminder.kind)) },
                 onUndo = { viewModel.undo(reminder) },
                 onDelete = { viewModel.open(ReminderDialog.Delete(reminder)) },
                 onDismiss = viewModel::close,
@@ -164,35 +177,40 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
             onConfirm = { viewModel.delete(dialog.reminder) },
             onDismiss = viewModel::close,
         )
-        ReminderDialog.Share -> state.ownSpace?.let { space ->
+        is ReminderDialog.Share -> state.ownSpace(dialog.kind)?.let { space ->
+            val copy = KindCopy.of(dialog.kind)
             ShareSheet(
-                title = "Compartir tus ${copy.title.lowercase()}",
+                title = "Compartir: ${copy.title}",
                 members = space.members,
                 invite = state.invite,
                 busy = state.busy,
                 demoMode = viewModel.demoMode,
                 onSendText = null,
-                onCreateInvite = viewModel::createInvite,
+                onCreateInvite = { viewModel.createInvite(dialog.kind) },
                 onShareInvite = { invite ->
                     shareText(
                         context,
-                        "Te comparto mis ${copy.title.lowercase()} en Arianna para que no se nos pase ninguno. " +
+                        "Te comparto mis recordatorios de ${copy.title} en Arianna para que no se nos pase nada. " +
                             "Únete con el código ${invite.code}: ${invite.url}",
                     )
                 },
-                onInvite = viewModel::invite,
-                onRemoveMember = viewModel::removeMember,
+                onInvite = { email, role, onDone -> viewModel.invite(dialog.kind, email, role, onDone) },
+                onRemoveMember = { viewModel.removeMember(dialog.kind, it) },
                 onDismiss = viewModel::close,
-                intro = copy.shareIntro,
+                intro = "Cada categoría se comparte por separado. ${copy.shareIntro}",
                 codeHint = "La otra persona lo escribe en Inicio → Unirme.",
-                emptyMembers = "Todavía nadie más ve tus ${copy.title.lowercase()}.",
+                emptyMembers = "Todavía nadie más ve esta categoría.",
+                header = {
+                    KindChips(selected = dialog.kind, onSelect = { viewModel.open(ReminderDialog.Share(it)) })
+                },
             ) {
-                if (state.sharedWithMe.isNotEmpty()) {
+                val shared = state.sharedWithMe(dialog.kind)
+                if (shared.isNotEmpty()) {
                     SheetTitle("Compartidos contigo")
-                    state.sharedWithMe.forEach { shared ->
+                    shared.forEach { other ->
                         Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "${copy.title} de ${shared.ownerName}",
+                                "${copy.title} de ${other.ownerName}",
                                 color = Palette.Ink,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f),
@@ -202,7 +220,7 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
                                 style = MaterialTheme.typography.labelLarge,
                                 color = Palette.Danger,
                                 modifier = Modifier
-                                    .clickable { viewModel.leave(shared) }
+                                    .clickable { viewModel.leave(other) }
                                     .padding(8.dp),
                             )
                         }
@@ -215,12 +233,63 @@ fun RemindersScreen(kind: ReminderKind, onBack: () -> Unit) {
     }
 }
 
-/** Cuánto falta pagar este mes y botón para agregar. */
+/** Todos · Pagos · Mi hogar · Mi carro · Otros (sobre el fondo oscuro). */
+@Composable
+private fun FilterRow(selected: ReminderKind?, onSelect: (ReminderKind?) -> Unit) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        (listOf<ReminderKind?>(null) + ReminderKind.entries).forEach { kind ->
+            FilterChip(
+                selected = selected == kind,
+                onClick = { onSelect(kind) },
+                label = { Text(kind?.let { KindCopy.of(it).title } ?: "Todos", style = MaterialTheme.typography.bodyMedium) },
+                leadingIcon = kind?.let { { Icon(kindIcon(it), null, modifier = Modifier.size(18.dp)) } },
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Palette.Glass,
+                    labelColor = Palette.OnDark,
+                    iconColor = Palette.OnDark,
+                    selectedContainerColor = Palette.OnDark,
+                    selectedLabelColor = Palette.Violet,
+                    selectedLeadingIconColor = Palette.Violet,
+                ),
+                border = null,
+            )
+        }
+    }
+}
+
+/** Selector de categoría (para la hoja de compartir y el diálogo de crear). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun KindChips(selected: ReminderKind, onSelect: (ReminderKind) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ReminderKind.entries.forEach { kind ->
+            FilterChip(
+                selected = selected == kind,
+                onClick = { onSelect(kind) },
+                label = { Text(KindCopy.of(kind).title, style = MaterialTheme.typography.bodyMedium) },
+                leadingIcon = { Icon(kindIcon(kind), null, modifier = Modifier.size(18.dp)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Palette.Violet,
+                    selectedLabelColor = Palette.OnDark,
+                    selectedLeadingIconColor = Palette.OnDark,
+                    labelColor = Palette.Ink,
+                    iconColor = Palette.Violet,
+                ),
+            )
+        }
+    }
+}
+
+/** Cuánto falta pagar este mes (o cuántos recordatorios) y botón para agregar. */
 @Composable
 private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
+    val money = state.filter == ReminderKind.PAYMENTS || (state.filter == null && state.monthTotal > 0)
     GlassCard {
         Text(
-            if (state.kind == ReminderKind.PAYMENTS) "POR PAGAR ESTE MES" else "POR HACER",
+            if (money) "POR PAGAR ESTE MES" else "ESTE MES",
             style = MaterialTheme.typography.labelLarge,
             color = Palette.OnDarkSoft,
         )
@@ -230,14 +299,12 @@ private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             SkeletonBox(width = 220.dp, height = 13.dp, onDark = true)
         } else {
-            val dueThisMonth = state.overdue.size + state.soon.size +
-                state.later.count { YearMonth.from(it.dueDate) == YearMonth.from(state.today) }
             Text(
-                if (state.kind == ReminderKind.PAYMENTS) Money.format(state.monthTotal)
-                else when (dueThisMonth) {
-                    0 -> "Al día ✨"
-                    1 -> "1 este mes"
-                    else -> "$dueThisMonth este mes"
+                when {
+                    money -> Money.format(state.monthTotal)
+                    state.monthCount == 0 -> "Al día ✨"
+                    state.monthCount == 1 -> "1 pendiente"
+                    else -> "${state.monthCount} pendientes"
                 },
                 color = Palette.OnDark,
                 fontSize = 40.sp,
@@ -246,17 +313,18 @@ private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
             )
             val parts = buildList {
                 val active = state.overdue.size + state.soon.size + state.later.size
-                add(if (active == 1) "1 ${state.copy.one}" else "$active ${state.copy.many}")
+                add(if (active == 1) "1 recordatorio" else "$active recordatorios")
                 if (state.overdue.isNotEmpty()) {
-                    add("${state.overdue.size} vencido${if (state.overdue.size > 1) "s" else ""} (${Money.format(state.overdueTotal)})")
+                    val total = if (state.overdueTotal > 0) " (${Money.format(state.overdueTotal)})" else ""
+                    add("${state.overdue.size} vencido${if (state.overdue.size > 1) "s" else ""}$total")
                 }
-                if (state.acceptedMembers > 0) add("compartido con ${state.acceptedMembers}")
+                if (state.sharedCount > 0) add("compartido con ${state.sharedCount}")
             }
             Text(parts.joinToString(" · "), color = Palette.OnDarkSoft, fontSize = 13.sp)
         }
         Spacer(Modifier.height(14.dp))
         PillButton(
-            state.copy.newLabel,
+            "Nuevo recordatorio",
             onClick = onNew,
             enabled = state.load == Load.READY,
             icon = Icons.Outlined.AddCircleOutline,
@@ -266,16 +334,63 @@ private fun SummaryCard(state: RemindersUiState, onNew: () -> Unit) {
     }
 }
 
+/** Mi carro: la matrícula se calcula con el último dígito de la placa. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EmptyState(copy: KindCopy, onNew: () -> Unit) {
+private fun PlateCard(onDigit: (Int) -> Unit, busy: Boolean) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Palette.LavenderSoft)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.DirectionsCar, null, tint = Palette.Violet)
+            Spacer(Modifier.width(8.dp))
+            Text("¿En qué número termina tu placa?", color = Palette.Ink, fontWeight = FontWeight.Bold)
+        }
+        Text(
+            "Te aviso cuando te toque matricular (1 feb · 2 mar · 3 abr … 9 oct · 0 nov).",
+            color = Palette.InkSoft,
+            fontSize = 13.sp,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 0).forEach { digit ->
+                Text(
+                    "$digit",
+                    color = Palette.OnDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (busy) Palette.DayBox else Palette.Violet)
+                        .clickable(enabled = !busy) { onDigit(digit) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(filter: ReminderKind?, onNew: () -> Unit) {
+    val text = when (filter) {
+        null -> "Agrega la luz, la limpieza del aire, el cambio de aceite o un cumpleaños y te aviso a tiempo."
+        ReminderKind.PAYMENTS -> "Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan."
+        ReminderKind.HOME -> "Agrega el mantenimiento del aire, la lavadora o la fumigación y te aviso."
+        ReminderKind.CAR -> "Agrega el cambio de aceite, el SOAT o la revisión técnica y te aviso."
+        ReminderKind.OTHER -> "Cumpleaños, citas, la cédula o la vacuna de la mascota: lo que no quieras olvidar."
+    }
     Column(
         Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Outlined.CalendarMonth, null, tint = Palette.Violet)
-        Text("Soy Arianna. ${copy.empty}", color = Palette.InkSoft)
-        PillButton(copy.newLabel, onClick = onNew, icon = Icons.Outlined.AddCircleOutline)
+        Icon(filter?.let(::kindIcon) ?: Icons.Outlined.NotificationsActive, null, tint = Palette.Violet)
+        Text("Soy Arianna. $text", color = Palette.InkSoft)
+        PillButton("Nuevo recordatorio", onClick = onNew, icon = Icons.Outlined.AddCircleOutline)
     }
 }
 
@@ -300,29 +415,38 @@ private fun ReminderGroup(title: String, reminders: List<Reminder>, state: Remin
     Spacer(Modifier.height(24.dp))
 }
 
+/** "45.300 km" */
+fun formatKm(km: Int): String = NumberFormat.getIntegerInstance(Dates.locale).format(km) + " km"
+
 @Composable
 private fun ReminderTicket(reminder: Reminder, state: RemindersUiState, onOpen: () -> Unit, onDone: () -> Unit) {
     val today = state.today
     val overdue = !reminder.finished && reminder.dueDate < today
+    val copy = KindCopy.of(reminder.kind)
     TicketCard(
-        footer = listOfNotNull(Recurrence.dueLabel(reminder, today), Recurrence.label(reminder.every, reminder.unit))
-            .joinToString(" · "),
+        footer = listOfNotNull(
+            copy.title.takeIf { state.filter == null },
+            Recurrence.dueLabel(reminder, today),
+            Recurrence.label(reminder.every, reminder.unit),
+        ).joinToString(" · "),
         badge = reminder.amount?.let(Money::format),
         onClick = onOpen,
-        footerIcon = Icons.Outlined.CalendarMonth,
+        footerIcon = if (state.filter == null) kindIcon(reminder.kind) else Icons.Outlined.CalendarMonth,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(reminder.title, fontWeight = FontWeight.Bold, color = Palette.Ink)
                 val due = if (reminder.finished) "Hecho" else Dates.longDay(reminder.dueDate).replaceFirstChar { it.uppercase() }
                 Text(
-                    listOfNotNull(due, state.ownerLabel(reminder)).joinToString(" · "),
+                    listOfNotNull(due, reminder.nextKm?.let { "o a los ${formatKm(it)}" }, state.ownerLabel(reminder))
+                        .joinToString(" · "),
                     color = if (overdue) Palette.Danger else Palette.InkSoft,
                     fontSize = 13.sp,
                 )
                 reminder.lastDone?.let { log ->
                     Text(
                         "Último: ${Dates.shortDay(log.shownDate(reminder.countFrom)).lowercase()}" +
+                            (log.odometer?.let { " · ${formatKm(it)}" } ?: "") +
                             (log.amount?.let { " · ${Money.format(it)}" } ?: "") +
                             (log.doneByName?.let { " · $it" } ?: ""),
                         color = Palette.InkSoft,
@@ -342,10 +466,9 @@ private fun ReminderTicket(reminder: Reminder, state: RemindersUiState, onOpen: 
                 ) {
                     Icon(Icons.Outlined.TaskAlt, null, tint = Palette.OnDark)
                     Spacer(Modifier.width(6.dp))
-                    Text(state.copy.doneLabel.uppercase(), style = MaterialTheme.typography.labelMedium, color = Palette.OnDark)
+                    Text(copy.doneLabel.uppercase(), style = MaterialTheme.typography.labelMedium, color = Palette.OnDark)
                 }
             }
         }
     }
 }
-

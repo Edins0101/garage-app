@@ -486,17 +486,26 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
     private fun FakeDb.replaceReminder(reminder: Reminder): FakeDb =
         copy(reminders = reminders.map { if (it.id == reminder.id) reminder.copy(updatedAt = now()) else it })
 
-    override fun observeReminders(kind: ReminderKind): Flow<List<Reminder>> = store.db
+    override fun observeReminders(kind: ReminderKind?): Flow<List<Reminder>> = store.db
         .filterNotNull()
-        .map { db -> db.reminders.filter { it.kind == kind }.sortedWith(compareBy({ it.nextDue }, { it.title })) }
+        .map { db ->
+            db.reminders.filter { kind == null || it.kind == kind }.sortedWith(compareBy({ it.nextDue }, { it.title }))
+        }
         .onStart { store.load() }
 
-    override fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>> = store.db
-        .filterNotNull()
-        .map { db -> db.withSpace(kind).first.spaces.filter { it.kind == kind } }
+    /** Una sección por categoría (se crean al pedirlas). */
+    private fun FakeDb.withAllSpaces(): FakeDb = ReminderKind.entries.fold(this) { db, kind -> db.withSpace(kind).first }
 
-    override suspend fun refresh(kind: ReminderKind) {
-        store.update { db -> db.withSpace(kind).first to Unit }
+    override fun observeSpaces(kind: ReminderKind?): Flow<List<ReminderSpace>> = store.db
+        .filterNotNull()
+        .map { db ->
+            db.withAllSpaces().spaces
+                .filter { kind == null || it.kind == kind }
+                .sortedBy { it.kind.ordinal }
+        }
+
+    override suspend fun refresh() {
+        store.update { db -> db.withAllSpaces() to Unit }
     }
 
     private fun validate(draft: ReminderDraft) {
@@ -521,6 +530,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 nextDue = draft.nextDue.toString(),
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
+                everyKm = draft.everyKm,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = now(),
                 updatedAt = now(),
@@ -545,6 +555,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 nextDue = draft.nextDue.toString(),
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
+                everyKm = draft.everyKm,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 finished = if (dateChanged) false else current.finished,
             )
@@ -563,7 +574,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
         }
     }
 
-    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder =
+    override suspend fun markDone(reminder: Reminder, amount: Double?, note: String?, odometer: Int?): Reminder =
         store.update { db ->
             val current = db.requireReminder(reminder.id)
             if (current.finished) throw DataException("Este recordatorio ya está hecho", DataException.Kind.INVALID)
@@ -573,6 +584,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 dueDate = current.nextDue,
                 amount = amount ?: current.amount,
                 note = note?.trim()?.takeIf { it.isNotEmpty() },
+                odometer = odometer,
                 doneBy = user.id,
                 doneByName = user.name,
                 createdAt = now(),

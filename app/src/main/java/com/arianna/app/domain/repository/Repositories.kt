@@ -153,6 +153,8 @@ data class ReminderDraft(
     val notifyDaysBefore: Int,
     val note: String?,
     val countFrom: CountFrom,
+    /** Mi carro: cada tantos km (opcional). */
+    val everyKm: Int? = null,
 )
 
 /**
@@ -160,10 +162,10 @@ data class ReminderDraft(
  * Ver docs/PLAN-RECORDATORIOS.md.
  */
 interface RemindersRepository {
-    /** Los de mis secciones y de las compartidas conmigo, por fecha de vencimiento. */
-    fun observeReminders(kind: ReminderKind): Flow<List<Reminder>>
-    fun observeSpaces(kind: ReminderKind): Flow<List<ReminderSpace>>
-    suspend fun refresh(kind: ReminderKind)
+    /** Los de mis secciones y de las compartidas conmigo, por fecha. [kind] null = todas las categorías. */
+    fun observeReminders(kind: ReminderKind? = null): Flow<List<Reminder>>
+    fun observeSpaces(kind: ReminderKind? = null): Flow<List<ReminderSpace>>
+    suspend fun refresh()
 
     /** Lo crea en [spaceId] o, si es null, en la sección propia. */
     suspend fun create(kind: ReminderKind, draft: ReminderDraft, spaceId: String? = null): Reminder
@@ -171,7 +173,7 @@ interface RemindersRepository {
     suspend fun delete(reminder: Reminder)
 
     /** Ya pagué / hecho: guarda el historial y pasa al siguiente vencimiento. Devuelve cómo quedó. */
-    suspend fun markDone(reminder: Reminder, amount: Double?, note: String?): Reminder
+    suspend fun markDone(reminder: Reminder, amount: Double?, note: String?, odometer: Int? = null): Reminder
     /** Deshace la última marca. */
     suspend fun undo(reminder: Reminder)
     suspend fun history(reminder: Reminder): List<ReminderLog>

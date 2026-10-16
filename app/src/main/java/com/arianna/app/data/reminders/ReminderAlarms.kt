@@ -63,14 +63,12 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val container = (applicationContext as AriannaApp).container
         val userId = container.auth.session.value?.user?.id ?: return Result.success()
         val store = ReminderSnapshotStore(applicationContext)
-        val reminders = ENABLED_KINDS.flatMap { kind ->
-            runCatching { container.reminders.observeReminders(kind).first() }
-                .onSuccess { store.save(userId, kind, it) }
-                .getOrElse {
-                    Log.w(TAG, "Sin conexión: uso la última copia de ${kind.apiName}", it)
-                    store.load(userId, kind)
-                }
-        }
+        val reminders = runCatching { container.reminders.observeReminders().first() }
+            .onSuccess { store.save(userId, it) }
+            .getOrElse {
+                Log.w(TAG, "Sin conexión: uso la última copia guardada", it)
+                store.load(userId)
+            }
         ReminderRules.notices(reminders, LocalDate.now())
             .filter { store.markSent(it.key) }
             .forEach { notice ->
@@ -90,9 +88,6 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         private const val TAG = "ReminderWorker"
         private const val DAILY = "recordatorios-diario"
         private const val NOW = "recordatorios-ahora"
-
-        /** Secciones que muestra la app (Mi carro se sumará aquí). */
-        val ENABLED_KINDS = listOf(ReminderKind.PAYMENTS, ReminderKind.HOME)
 
         /** Revisión diaria cerca de las 8:00 y una revisión ya mismo (al abrir la app). */
         fun schedule(context: Context) {
@@ -121,11 +116,11 @@ class ReminderSnapshotStore(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     private val serializer = ListSerializer(Reminder.serializer())
 
-    fun save(userId: String, kind: ReminderKind, reminders: List<Reminder>) =
-        prefs.edit { putString("snapshot-$userId-${kind.apiName}", json.encodeToString(serializer, reminders)) }
+    fun save(userId: String, reminders: List<Reminder>) =
+        prefs.edit { putString("snapshot-$userId", json.encodeToString(serializer, reminders)) }
 
-    fun load(userId: String, kind: ReminderKind): List<Reminder> =
-        prefs.getString("snapshot-$userId-${kind.apiName}", null)
+    fun load(userId: String): List<Reminder> =
+        prefs.getString("snapshot-$userId", null)
             ?.let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() }
             .orEmpty()
 

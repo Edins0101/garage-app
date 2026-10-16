@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 
 /** Secciones que puede mostrar el inicio. */
 @Serializable
-enum class HomeSection { GARAGE, PAYMENTS, HOME, SHOPPING, TASKS }
+enum class HomeSection { GARAGE, REMINDERS, SHOPPING, TASKS }
 
 /**
  * Cómo quiere el usuario su pantalla de inicio.
@@ -63,10 +63,16 @@ class HomePrefsStore(context: Context) {
         flow(userId).value = value
     }
 
+    /** v0.4–0.5 tenían Pagos y Mi hogar como secciones; ahora van juntas en Recordatorios. */
+    private fun migrate(stored: String): String = stored
+        .replace("\"PAYMENTS\"", "\"REMINDERS\"")
+        .replace(Regex(",?\\s*\"HOME\""), "")
+        .replace("[,", "[")
+
     @Synchronized
     private fun flow(userId: String): MutableStateFlow<HomePrefs> = flows.getOrPut(userId) {
         val stored = prefs.getString(userId, null)?.let {
-            runCatching { json.decodeFromString(HomePrefs.serializer(), it) }.getOrNull()
+            runCatching { json.decodeFromString(HomePrefs.serializer(), migrate(it)) }.getOrNull()
         }
         MutableStateFlow(stored?.normalized() ?: HomePrefs())
     }

@@ -110,7 +110,8 @@ Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento conf
 
 ## Recordatorios (Pagos, Mi hogar, Mi carro)
 
-Diseño en [PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md). `kind` = `payments` \| `home` \| `car` (la app muestra Pagos y Mi hogar).
+Diseño en [PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md). `kind` = `payments` \| `home` \| `car` \| `other`.
+En `GET /spaces` y `GET /reminders` el `kind` es opcional: sin él vienen todas las categorías (la app usa eso).
 Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte completa.
 
 | Método | Ruta | Body | Respuesta |
@@ -120,14 +121,15 @@ Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte comple
 | DELETE | `/spaces/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse) |
 | POST | `/spaces/{id}/invites` | — | `ShareInvite` con `spaceId` (solo el dueño) |
 | GET | `/reminders?kind=payments` | — | `Reminder[]` de todas mis secciones de ese tipo, por `nextDue` |
-| POST | `/reminders` | `{ kind, spaceId?, title, amount?, every?, unit?, nextDue, notifyDaysBefore, countFrom?, note? }` | `Reminder` (201) |
+| POST | `/reminders` | `{ kind, spaceId?, title, amount?, every?, unit?, nextDue, notifyDaysBefore, countFrom?, everyKm?, note? }` | `Reminder` (201) |
 | PATCH | `/reminders/{id}` | mismos campos; `null` borra `amount`, `note` o la repetición | `Reminder` |
 | DELETE | `/reminders/{id}` | — | 204 |
-| POST | `/reminders/{id}/done` | `{ amount?, note? }` | `Reminder` ya en el siguiente vencimiento (o `finished` si es de una sola vez) |
+| POST | `/reminders/{id}/done` | `{ amount?, note?, odometer? }` | `Reminder` ya en el siguiente vencimiento (o `finished` si es de una sola vez) |
 | POST | `/reminders/{id}/undo` | — | `Reminder` (vuelve al vencimiento de la última marca; 409 si no hay) |
 | GET | `/reminders/{id}/history` | — | `ReminderLog[]`, el más reciente primero |
 
-- `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, countFrom ('due'|'done'), note, finished, lastDone, createdAt, updatedAt`.
+- `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, countFrom ('due'|'done'), everyKm, note, finished, lastDone, createdAt, updatedAt`.
+- `ReminderLog`: `id, dueDate, amount, note, odometer, doneBy, doneByName, createdAt`. `everyKm`/`odometer` son para Mi carro.
 - `countFrom`: `due` = el siguiente se cuenta desde la fecha que vencía; `done` = desde el día que se marcó (zona horaria de Ecuador). Por defecto `due` en pagos y `done` en `home`/`car`.
   `every` y `unit` van juntos o ambos `null` (una sola vez).
 - Meses: se respeta el día original (vence el 31 → 28 feb → 31 mar).

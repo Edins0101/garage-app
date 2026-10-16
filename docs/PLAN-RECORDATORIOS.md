@@ -1,13 +1,17 @@
 # Recordatorios: Pagos, Mi hogar y Mi carro
 
-> Decidido con el usuario el 2026-10-16. Estado: **Pagos y Mi hogar hechos**; falta Mi carro.
+> Decidido con el usuario el 2026-10-16. Estado: **Pagos, Mi hogar, Mi carro y Otros hechos**, en una sola pantalla "Recordatorios".
 
 ## Idea
 
 Pagos (luz, internet, tarjeta), Mi hogar (aire acondicionado, lavadora, fumigación) y Mi carro
 (matrícula, aceite, SOAT) son lo mismo por dentro: **algo que vence cada cierto tiempo, avisa
 antes y se marca como hecho**. Por eso hay un solo motor de *recordatorios* con tres secciones
-(`kind` = `payments` | `home` | `car`). Cambian los textos (`KindCopy`), no la lógica.
+(`kind` = `payments` | `home` | `car` | `other`). Cambian los textos (`KindCopy`), no la lógica.
+
+**Una sola pantalla "Recordatorios"** (decisión del usuario, v0.6): un mosaico en el inicio y filtros
+Todos · Pagos · Mi hogar · Mi carro · Otros. Al crear se elige la categoría; cada categoría es una sección
+que se comparte por separado (Pagos con la pareja, Mi hogar con los roomies).
 
 ## Decisiones
 
@@ -47,6 +51,10 @@ antes y se marca como hecho**. Por eso hay un solo motor de *recordatorios* con 
    se puede cambiar a fecha fija). Ideas rápidas para crear con un toque (aire cada 3 meses, filtro de la
    lavadora cada mes, filtro de agua y fumigación cada 6 meses, refri, calefón). Pagos también tiene ideas
    (luz, agua, internet, celular, tarjeta, arriendo).
-3. ⏳ **Mi carro**: matrícula por último dígito de placa (calendario de Ecuador), pico y placa,
-   mantenimiento por kilometraje (pedir el km al marcar).
-4. Ideas: foto del comprobante (reusar las fotos de Supabase), resumen del mes, recordatorios sugeridos.
+3. ✅ **Mi carro**: matrícula por último dígito de placa (calendario ANT: 1 feb … 9 oct, 0 nov; `Plates`),
+   "cada 3 meses o 5.000 km" (`everyKm`, informativo) y kilometraje al marcar (`odometer`); la tarjeta muestra
+   "o a los 50.300 km". Ideas: aceite, llantas, frenos, SOAT, seguro, revisión técnica.
+   **Pico y placa: no se hizo** (no existe en Guayaquil y los horarios de Quito cambian; datos fijos podrían
+   causar multas). Si se agrega, que sea configurable por ciudad y con fuente oficial.
+4. ✅ **Otros**: cumpleaños, aniversario, cita médica, licencia, vacuna y desparasitación de la mascota.
+5. Ideas: foto del comprobante (reusar las fotos de Supabase), resumen del mes, recordatorios sugeridos.

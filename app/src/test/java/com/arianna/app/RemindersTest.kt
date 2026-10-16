@@ -5,6 +5,7 @@ import com.arianna.app.domain.model.CountFrom
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.model.RepeatUnit
+import com.arianna.app.ui.reminders.Plates
 import com.arianna.app.util.Recurrence
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -75,5 +76,17 @@ class RemindersTest {
         val luz = reminder(LocalDate.of(2026, 1, 31))
         assertEquals(LocalDate.of(2026, 2, 28), Recurrence.nextAfterDone(luz, LocalDate.of(2026, 2, 20)))
         assertEquals(null, Recurrence.nextAfterDone(luz.copy(every = null, unit = null), today))
+    }
+
+    @Test
+    fun registrationMonthByLastPlateDigit() {
+        // Calendario de la ANT: 1 → febrero … 9 → octubre, 0 → noviembre.
+        assertEquals(2, Plates.month(1))
+        assertEquals(10, Plates.month(9))
+        assertEquals(11, Plates.month(0))
+        // Hoy es 16 oct 2026: el 0 (noviembre) aún viene; el 9 (octubre) es ahora; el 3 (abril) ya pasó.
+        assertEquals(LocalDate.of(2026, 11, 1), Plates.nextRegistration(0, today))
+        assertEquals(today, Plates.nextRegistration(9, today))
+        assertEquals(LocalDate.of(2027, 4, 1), Plates.nextRegistration(3, today))
     }
 }

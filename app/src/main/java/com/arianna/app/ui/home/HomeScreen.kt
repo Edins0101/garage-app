@@ -33,8 +33,9 @@ import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.House
-import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.NotificationsActive
+import com.arianna.app.ui.reminders.KindCopy
+import com.arianna.app.ui.reminders.kindIcon
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
@@ -106,7 +107,8 @@ import java.time.YearMonth
 @Composable
 fun HomeScreen(
     onOpenGarage: () -> Unit,
-    onOpenReminders: (ReminderKind) -> Unit,
+    /** null = todas las categorías. */
+    onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
 ) {
@@ -249,15 +251,9 @@ fun HomeScreen(
                                 onToggle = viewModel::toggleSelected,
                                 onOpenGarage = onOpenGarage,
                             )
-                            HomeSection.PAYMENTS -> RemindersSection(
-                                kind = ReminderKind.PAYMENTS,
+                            HomeSection.REMINDERS -> RemindersSection(
                                 state = state,
-                                onOpen = { onOpenReminders(ReminderKind.PAYMENTS) },
-                            )
-                            HomeSection.HOME -> RemindersSection(
-                                kind = ReminderKind.HOME,
-                                state = state,
-                                onOpen = { onOpenReminders(ReminderKind.HOME) },
+                                onOpen = { onOpenReminders(null) },
                             )
                             HomeSection.SHOPPING -> ListsSection(
                                 title = "Compras",
@@ -291,8 +287,7 @@ private fun ColumnScope.SectionSkeleton(section: HomeSection) {
     SheetTitle(
         when (section) {
             HomeSection.GARAGE -> "Agenda del garaje"
-            HomeSection.PAYMENTS -> "Próximos pagos"
-            HomeSection.HOME -> "Mi hogar"
+            HomeSection.REMINDERS -> "Recordatorios"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
         },
@@ -344,15 +339,14 @@ private data class MenuEntry(val icon: ImageVector, val label: String, val onCli
 private fun MainMenu(
     prefs: HomePrefs,
     onOpenGarage: () -> Unit,
-    onOpenReminders: (ReminderKind) -> Unit,
+    onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
         when (section) {
             HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Mi garaje", onOpenGarage)
-            HomeSection.PAYMENTS -> MenuEntry(Icons.Outlined.Payments, "Pagos") { onOpenReminders(ReminderKind.PAYMENTS) }
-            HomeSection.HOME -> MenuEntry(Icons.Outlined.House, "Mi hogar") { onOpenReminders(ReminderKind.HOME) }
+            HomeSection.REMINDERS -> MenuEntry(Icons.Outlined.NotificationsActive, "Recordatorios") { onOpenReminders(null) }
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
         }
@@ -466,12 +460,11 @@ private fun GarageAgenda(
     }
 }
 
-/** Los próximos 3 pagos o mantenimientos, con su vencimiento; toca para ir a la sección. */
+/** Los próximos 3 recordatorios (de cualquier categoría); toca para ir a Recordatorios. */
 @Composable
-private fun ColumnScope.RemindersSection(kind: ReminderKind, state: HomeUiState, onOpen: () -> Unit) {
-    val payments = kind == ReminderKind.PAYMENTS
-    val upcoming = state.upcoming(kind)
-    SheetTitle(if (payments) "Próximos pagos" else "Mi hogar") {
+private fun ColumnScope.RemindersSection(state: HomeUiState, onOpen: () -> Unit) {
+    val upcoming = state.upcomingReminders
+    SheetTitle("Próximos recordatorios") {
         Text(
             "VER TODOS",
             style = MaterialTheme.typography.labelLarge,
@@ -485,13 +478,12 @@ private fun ColumnScope.RemindersSection(kind: ReminderKind, state: HomeUiState,
     Spacer(Modifier.height(14.dp))
     if (upcoming.isEmpty()) {
         Text(
-            if (payments) "Agrega la luz, el internet o la tarjeta y te aviso antes de que venzan."
-            else "Agrega la limpieza del aire, el filtro de la lavadora o la fumigación y te aviso cuándo toca.",
+            "Agrega la luz, la limpieza del aire, la matrícula del carro o un cumpleaños y te aviso a tiempo.",
             color = Palette.InkSoft,
         )
         Spacer(Modifier.height(10.dp))
         PillButton(
-            if (payments) "Nuevo pago" else "Nuevo recordatorio",
+            "Nuevo recordatorio",
             onClick = onOpen,
             light = true,
             icon = Icons.Outlined.AddCircleOutline,
@@ -502,10 +494,10 @@ private fun ColumnScope.RemindersSection(kind: ReminderKind, state: HomeUiState,
         upcoming.forEach { reminder ->
             val overdue = reminder.dueDate < LocalDate.now()
             TicketCard(
-                footer = Recurrence.dueLabel(reminder),
+                footer = "${KindCopy.of(reminder.kind).title} · ${Recurrence.dueLabel(reminder)}",
                 badge = reminder.amount?.let(Money::format),
                 onClick = onOpen,
-                footerIcon = if (payments) Icons.Outlined.Payments else Icons.Outlined.House,
+                footerIcon = kindIcon(reminder.kind),
             ) {
                 Text(reminder.title, fontWeight = FontWeight.Bold, color = Palette.Ink)
                 Text(
