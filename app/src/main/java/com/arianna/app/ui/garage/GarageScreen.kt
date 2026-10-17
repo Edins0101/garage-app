@@ -5,6 +5,11 @@ import com.arianna.app.ui.components.SkeletonBox
 import com.arianna.app.ui.components.LoadNotice
 import com.arianna.app.ui.common.Load
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,9 +113,9 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                     ) {
                         val counter = state.counter
                         TopBar(
-                            title = counter?.name ?: "Contador",
+                            title = counter?.name ?: "Cuenta",
                             overline = when {
-                                counter == null || counter.mine -> "Contador por día"
+                                counter == null || counter.mine -> "Cuenta por día"
                                 counter.canEdit -> "De ${counter.ownerName} · puedes editar"
                                 else -> "De ${counter.ownerName} · solo ver"
                             },
@@ -121,7 +126,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                                     Icon(Icons.Outlined.GroupAdd, contentDescription = "Compartir", tint = Palette.OnDark)
                                 }
                                 IconButton(onClick = viewModel::openEditCounter) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "Editar contador", tint = Palette.OnDark)
+                                    Icon(Icons.Outlined.Edit, contentDescription = "Editar cuenta", tint = Palette.OnDark)
                                 }
                             } else if (counter != null) {
                                 IconButton(onClick = viewModel::openLeave) {
@@ -153,32 +158,11 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                         rangeStart = state.rangeStart,
                         onDayClick = viewModel::onDayClick,
                         onDayLongClick = viewModel::openDay,
+                        paid = state.paidDates,
+                        paymentDays = state.paymentDates,
                     )
-                    Spacer(Modifier.height(24.dp))
-                    SheetTitle("Días en ${Dates.monthName(state.month).lowercase()}") {
-                        if (state.monthDays.isNotEmpty()) {
-                            Text(
-                                "${state.monthDays.size} · ${Money.format(state.monthTotal)}",
-                                color = Palette.Violet,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    }
                     Spacer(Modifier.height(12.dp))
-                    if (state.load != Load.READY) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            TicketSkeleton()
-                            TicketSkeleton()
-                        }
-                    } else if (state.monthDays.isEmpty()) {
-                        Text("No hay días marcados este mes.", color = Palette.InkSoft)
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        state.monthDays.sortedByDescending { it.date }.forEach { day ->
-                            DayTicket(day, onClick = { viewModel.openDay(day.localDate) })
-                        }
-                    }
-
+                    CalendarLegend(state)
                     Spacer(Modifier.height(28.dp))
                     SheetTitle(state.copy.paymentsTitle) {
                         Text(
@@ -226,6 +210,14 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
             date = dialog.date,
             day = state.dialogDay,
             defaultRate = state.settings.dailyRate,
+            payments = state.dialogPayments,
+            paymentNoun = state.copy.paymentNoun,
+            locked = when {
+                !state.canEdit -> "Solo puedes ver este día."
+                state.isClosed(dialog.date) -> "Pagado: cubierto por los pagos hasta el " +
+                    "${state.paidUntil?.let(Dates::shortDay)?.lowercase()}. Para cambiarlo, borra el pago."
+                else -> null
+            },
             onSave = { note, rate -> viewModel.saveDay(dialog.date, note, rate) },
             onRemoveDay = { viewModel.removeDay(dialog.date) },
             onAddCharge = { description, amount, onAdded -> viewModel.addCharge(dialog.date, description, amount, onAdded) },
@@ -275,7 +267,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                 intro = "Con \"Puede editar\" marca días y registra pagos (ej. tu pareja). " +
                     "Con \"Solo ver\" ve los días y cuánto se debe (ej. la niñera). Solo tú cambias la tarifa.",
                 codeHint = "Quien use el código entra como \"Solo ver\". Para darle edición, invita su correo.",
-                emptyMembers = "Todavía nadie más ve este contador.",
+                emptyMembers = "Todavía nadie más ve esta cuenta.",
                 groups = GroupSharing(state.groups, counter.groups, viewModel::shareWithGroup) {
                     viewModel.closeDialog()
                     onOpenGroups()
@@ -412,33 +404,41 @@ private fun ModeCard(state: GarageUiState, onMode: (GarageMode) -> Unit) {
                 Icons.Outlined.DateRange, "Rango", { onMode(GarageMode.RANGE) },
                 Modifier.weight(1f), selected = state.mode == GarageMode.RANGE, compact = true,
             )
-            MenuTile(
-                Icons.Outlined.EditNote, "Detalle", { onMode(GarageMode.NOTE) },
-                Modifier.weight(1f), selected = state.mode == GarageMode.NOTE, compact = true,
-            )
         }
         Spacer(Modifier.height(10.dp))
         Text(state.hint, color = Palette.OnDarkSoft, fontSize = 13.sp)
     }
 }
 
+/** Qué significa cada color del calendario y hasta cuándo está pagado. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DayTicket(day: GarageDay, onClick: () -> Unit) {
-    val details = buildList {
-        add(day.rate?.let { "Tarifa ${Money.format(it)}" } ?: "Sin tarifa")
-        day.charges.forEach { add("${it.description} ${Money.format(it.amount)}") }
-    }.joinToString(" · ")
-    TicketCard(
-        footer = day.note ?: "Ver detalle",
-        badge = Money.format(day.total),
-        onClick = onClick,
-        footerIcon = Icons.Outlined.EditNote,
-    ) {
+private fun CalendarLegend(state: GarageUiState) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        LegendDot(Palette.Violet, filled = true, label = "Por pagar")
+        LegendDot(Palette.Success, filled = true, label = "Pagado")
+        LegendDot(Palette.Gold, filled = false, label = "Día de ${state.copy.paymentNoun.lowercase()}")
+    }
+    state.paidUntil?.let {
+        Spacer(Modifier.height(6.dp))
         Text(
-            Dates.longDay(day.localDate).replaceFirstChar { it.uppercase() },
-            fontWeight = FontWeight.Bold,
-            color = Palette.Ink,
+            "Pagado hasta el ${Dates.longDay(it)}: esos días ya no se cambian.",
+            color = Palette.InkSoft,
+            fontSize = 13.sp,
         )
-        Text(details, color = Palette.InkSoft, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, filled: Boolean, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(14.dp)
+                .clip(CircleShape)
+                .then(if (filled) Modifier.background(color) else Modifier.border(3.dp, color, CircleShape)),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = Palette.InkSoft, fontSize = 13.sp)
     }
 }

@@ -228,6 +228,26 @@ data class FakeCounter(
         createdAt = createdAt,
     )
 
+    /** Igual que el servidor: último día pagado por completo (los pagos cubren primero lo más antiguo). */
+    fun paidUntil(): String? {
+        var left = payments.sumOf { it.amount }
+        if (left <= 0) return null
+        var last: String? = null
+        for (day in days.sortedBy { it.date }) {
+            if (day.total <= 0) continue
+            if (day.total > left + 0.001) break
+            left -= day.total
+            last = day.date
+        }
+        return last
+    }
+
+    /** Lo pagado no se cambia (hay que borrar el pago). */
+    fun checkOpen(date: String) {
+        val closed = paidUntil() ?: return
+        if (date <= closed) throw DataException("Ese día ya está pagado: no se puede cambiar", DataException.Kind.INVALID)
+    }
+
     fun summary(): GarageSummary {
         val until = LocalDate.now().toString()
         val counted = days.filter { it.date <= until }
@@ -243,6 +263,7 @@ data class FakeCounter(
             chargesTotal = chargesTotal,
             total = daysTotal + chargesTotal,
             paid = paid,
+            paidUntil = paidUntil(),
             pending = daysTotal + chargesTotal - paid,
         )
     }
@@ -312,7 +333,7 @@ private fun FakeDb.withCounters(): FakeDb {
 private fun FakeDb.withCounter(id: String, change: (FakeCounter) -> FakeCounter): FakeDb {
     val migrated = withCounters()
     val current = migrated.counters.find { it.id == id }
-        ?: throw DataException("El contador no existe", DataException.Kind.NOT_FOUND)
+        ?: throw DataException("La cuenta no existe", DataException.Kind.NOT_FOUND)
     val next = change(current)
     return migrated.copy(counters = migrated.counters.map { if (it.id == id) next else it })
 }
@@ -343,6 +364,7 @@ class FakeCounterRepository(private val store: FakeStore, private val id: String
 
     private fun FakeCounter.withDay(date: LocalDate, change: (GarageDay) -> GarageDay): FakeCounter {
         val key = date.toString()
+        checkOpen(key)
         val day = days.find { it.date == key } ?: newDay(key, dailyRate)
         return copy(days = days.filterNot { it.date == key } + change(day).recalculated())
     }
@@ -359,7 +381,10 @@ class FakeCounterRepository(private val store: FakeStore, private val id: String
     }
 
     override suspend fun removeDay(date: LocalDate) = store.update { db ->
-        db.withCounter(id) { it.copy(days = it.days.filterNot { day -> day.date == date.toString() }) } to Unit
+        db.withCounter(id) {
+            it.checkOpen(date.toString())
+            it.copy(days = it.days.filterNot { day -> day.date == date.toString() })
+        } to Unit
     }
 
     override suspend fun setDayRate(date: LocalDate, rate: Double) = store.update { db ->
@@ -377,6 +402,7 @@ class FakeCounterRepository(private val store: FakeStore, private val id: String
 
     override suspend fun removeCharge(chargeId: String) = store.update { db ->
         db.withCounter(id) { counter ->
+            counter.days.find { day -> day.charges.any { it.id == chargeId } }?.let { counter.checkOpen(it.date) }
             counter.copy(
                 days = counter.days.map { day ->
                     if (day.charges.none { it.id == chargeId }) day

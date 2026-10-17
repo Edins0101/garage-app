@@ -1,5 +1,10 @@
 package com.arianna.app.ui.garage
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.arianna.app.domain.model.Payment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,6 +72,11 @@ fun DayDetailSheet(
     date: LocalDate,
     day: GarageDay?,
     defaultRate: Double?,
+    /** Pagos registrados ese día. */
+    payments: List<Payment>,
+    paymentNoun: String,
+    /** Si no es null, el día solo se ve (pagado o sin permiso) y este es el motivo. */
+    locked: String?,
     onSave: (note: String, rate: String) -> Unit,
     onRemoveDay: () -> Unit,
     onAddCharge: (description: String, amount: String, onAdded: () -> Unit) -> Unit,
@@ -98,12 +108,44 @@ fun DayDetailSheet(
             )
             Text(
                 when {
-                    day == null -> "Este día no está marcado. Al guardar se marca en el garaje."
+                    day == null -> if (locked == null) "Este día no está marcado. Al guardar se marca." else "Este día no está marcado."
                     else -> "Total del día: ${Money.format(day.total)}"
                 },
                 color = if (day == null) Palette.InkSoft else Palette.Violet,
                 fontWeight = if (day == null) FontWeight.Normal else FontWeight.Bold,
             )
+            payments.forEach { payment ->
+                Text(
+                    "$paymentNoun de ${Money.format(payment.amount)}" + (payment.note?.let { " · $it" } ?: ""),
+                    color = Palette.Ink,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(2.dp, Palette.Gold, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+            if (locked != null) {
+                Text(
+                    locked,
+                    color = Palette.Ink,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Palette.Lavender)
+                        .padding(12.dp),
+                )
+                day?.note?.let { Text("Nota: $it", color = Palette.Ink) }
+                day?.let { Text("Tarifa: " + (it.rate?.let(Money::format) ?: "sin tarifa"), color = Palette.InkSoft) }
+                day?.charges?.forEach { charge ->
+                    Row {
+                        Text(charge.description, color = Palette.Ink, modifier = Modifier.weight(1f))
+                        Text(Money.format(charge.amount), color = Palette.Ink, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                return@Column
+            }
 
             OutlinedTextField(
                 value = note,
@@ -194,7 +236,7 @@ fun GarageSettingsDialog(
         containerColor = Palette.Sheet,
         titleContentColor = Palette.Ink,
         textContentColor = Palette.InkSoft,
-        title = { Text("Tarifa del garaje") },
+        title = { Text("Tarifa por día") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 MoneyField(rate, { rate = it }, "Tarifa por día", Modifier.fillMaxWidth())

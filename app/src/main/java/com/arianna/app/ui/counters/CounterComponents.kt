@@ -151,7 +151,7 @@ fun CounterDialog(
         containerColor = Palette.Sheet,
         titleContentColor = Palette.Ink,
         textContentColor = Palette.InkSoft,
-        title = { Text(if (counter == null) "Nuevo contador" else "Editar «${counter.name}»") },
+        title = { Text(if (counter == null) "Nueva cuenta por día" else "Editar «${counter.name}»") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (counter == null) {

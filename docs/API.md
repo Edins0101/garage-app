@@ -44,7 +44,7 @@ Al iniciar sesión, las invitaciones por correo pendientes a ese email se acepta
 | PUT | `/garage-days/{date}` | `{ note?: string }` | `GarageDay` (crea o actualiza) |
 | DELETE | `/garage-days/{date}` | — | 204 |
 
-## Contadores por día
+## Contadores por día (en la app: «Cuentas por día»)
 
 Cada usuario puede tener varios contadores (el garaje, la niñera, el expreso, días trabajados…). Cada uno
 tiene su tarifa, marcado automático, días, cargos y pagos; `direction` = `pay` (yo pago) o `earn` (me pagan).
@@ -78,6 +78,10 @@ tiene su tarifa, marcado automático, días, cargos y pagos; `direction` = `pay`
 | POST | `/join` | `{ code }` | `JoinResult` con `type: 'tracker'` y `trackerId` |
 - Las rutas de abajo (`/garage*`, `/garage-days`, `/payments`) son de versiones anteriores de la app y
   trabajan sobre el **primer** contador (si no hay, crean "Mi garaje").
+
+- `GarageSummary.paidUntil`: último día pagado por completo. Los pagos cubren primero los días más antiguos;
+  un día cubierto solo en parte sigue pendiente. Hasta esa fecha (incluida) no se marcan, quitan ni editan días
+  ni cargos: el backend responde **409** "Ese día ya está pagado…". Al borrar el pago se vuelven a abrir.
 
 ## Tarifa, cargos y pagos del garaje (rutas anteriores: primer contador)
 

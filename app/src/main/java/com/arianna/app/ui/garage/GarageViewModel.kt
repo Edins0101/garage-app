@@ -31,8 +31,8 @@ import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** Qué hace un toque sobre el calendario. */
-enum class GarageMode { DAY, RANGE, NOTE }
+/** Qué hace un toque sobre el calendario: un día (marca o abre su detalle) o un rango. */
+enum class GarageMode { DAY, RANGE }
 
 /** Diálogo abierto en la pantalla. */
 sealed interface GarageDialog {
@@ -70,6 +70,12 @@ data class GarageUiState(
     val mine: Boolean = counter?.mine ?: true
     val copy: CounterCopy = CounterCopy.of(counter?.direction ?: CounterDirection.PAY)
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
+    /** Hasta esta fecha todo está pagado y cerrado. */
+    val paidUntil: LocalDate? = summary.paidUntilDate
+    val paidDates: Set<LocalDate> = paidUntil?.let { limit -> markedDates.filter { it <= limit }.toSet() }.orEmpty()
+    val paymentDates: Set<LocalDate> = payments.map { it.localDate }.toSet()
+    fun isClosed(date: LocalDate): Boolean = paidUntil?.let { date <= it } ?: false
+    val dialogPayments: List<Payment> = (dialog as? GarageDialog.Day)?.let { d -> payments.filter { it.localDate == d.date } }.orEmpty()
     /** Días con nota o cargos extra (llevan un punto en el calendario). */
     val noteDates: Set<LocalDate> =
         days.filter { it.note != null || it.charges.isNotEmpty() }.map { it.localDate }.toSet()
@@ -78,10 +84,9 @@ data class GarageUiState(
     val dialogDay: GarageDay? = (dialog as? GarageDialog.Day)?.let { d -> days.find { it.localDate == d.date } }
 
     val hint: String = when (mode) {
-        GarageMode.DAY -> "Toca un día para marcarlo o quitarlo. Mantén presionado para ver su detalle (nota, tarifa y cargos)."
+        GarageMode.DAY -> "Toca un día libre para marcarlo. Toca un día marcado para ver su detalle, cambiarlo o quitarlo."
         GarageMode.RANGE -> rangeStart?.let { "Inicio: ${Dates.longDay(it)}. Ahora toca el último día." }
             ?: "Toca el primer día y luego el último para marcar todo el rango."
-        GarageMode.NOTE -> "Toca un día para ver y editar su nota, tarifa y cargos extra."
     }
 }
 
@@ -131,7 +136,7 @@ class GarageViewModel(
 
     /** "Solo ver": avisa en vez de cambiar nada. Devuelve true si se puede editar. */
     private fun editable(): Boolean {
-        if (!state.value.canEdit) notify("Solo puedes ver este contador")
+        if (!state.value.canEdit) notify("Solo puedes ver esta cuenta")
         return state.value.canEdit
     }
 
@@ -186,7 +191,7 @@ class GarageViewModel(
     fun saveCounter(draft: CounterDraft) = launchSafely {
         val counter = state.value.counter ?: return@launchSafely
         counters.update(counter, draft)
-        notify("Contador guardado")
+        notify("Cuenta guardada")
         closeDialog()
     }
 
@@ -203,7 +208,7 @@ class GarageViewModel(
 
     fun openDay(date: LocalDate) = local.update { it.copy(dialog = GarageDialog.Day(date)) }
     fun openSettings() {
-        if (!state.value.mine) return notify("Solo el dueño del contador cambia la tarifa")
+        if (!state.value.mine) return notify("Solo el dueño de la cuenta cambia la tarifa")
         local.update { it.copy(dialog = GarageDialog.Settings) }
     }
 
@@ -212,35 +217,51 @@ class GarageViewModel(
     }
     fun closeDialog() = local.update { it.copy(dialog = null) }
 
+    /**
+     * Un día marcado (o con un pago) abre su detalle; uno libre se marca. Lo pagado no se cambia:
+     * solo se puede ver. Quien solo ve el contador también abre el detalle sin poder editar.
+     */
     fun onDayClick(date: LocalDate) {
+        val current = state.value
+        val opensDetail = date in current.markedDates || date in current.paymentDates
+        if (opensDetail && (current.mode == GarageMode.DAY || !current.canEdit)) return openDay(date)
+        if (current.isClosed(date)) return notify(closedMessage())
         if (!editable()) return
-        val ui = local.value
-        when (ui.mode) {
-            GarageMode.DAY -> toggle(date)
-            GarageMode.NOTE -> openDay(date)
+        when (current.mode) {
+            GarageMode.DAY -> launchSafely { garage.setDay(date) }
             GarageMode.RANGE -> {
-                val start = ui.rangeStart
+                val start = local.value.rangeStart
                 if (start == null) {
                     local.update { it.copy(rangeStart = date) }
                 } else {
                     local.update { it.copy(rangeStart = null) }
                     launchSafely {
-                        val range = Dates.between(start, date)
+                        // Los días ya pagados se saltan.
+                        val range = Dates.between(minOf(start, date), maxOf(start, date)).filterNot(current::isClosed)
                         garage.setDays(range)
-                        notify("${range.size} días marcados en ${state.value.counter?.name ?: "el contador"}")
+                        notify("${range.size} días marcados en ${state.value.counter?.name ?: "la cuenta"}")
                     }
                 }
             }
         }
     }
 
-    private fun toggle(date: LocalDate) = launchSafely {
-        if (date in state.value.markedDates) garage.removeDay(date) else garage.setDay(date)
+    private fun closedMessage(): String =
+        "Ese día ya está pagado (cubierto hasta el ${state.value.paidUntil?.let(Dates::shortDay)?.lowercase()}). " +
+            "Para cambiarlo, borra el pago."
+
+    /** "Solo ver" o ya pagado: avisa en vez de cambiar nada. */
+    private fun changeable(date: LocalDate): Boolean {
+        if (state.value.isClosed(date)) {
+            notify(closedMessage())
+            return false
+        }
+        return editable()
     }
 
     /** Guarda nota y tarifa del día (marca el día si no lo estaba). */
     fun saveDay(date: LocalDate, note: String, rateText: String) = launchSafely {
-        if (!editable()) return@launchSafely
+        if (!changeable(date)) return@launchSafely
         val rate = rateText.takeIf { it.isNotBlank() }?.let {
             Money.parse(it) ?: return@launchSafely notify("La tarifa no es un monto válido")
         }
@@ -251,13 +272,13 @@ class GarageViewModel(
     }
 
     fun removeDay(date: LocalDate) = launchSafely {
-        if (!editable()) return@launchSafely
+        if (!changeable(date)) return@launchSafely
         garage.removeDay(date)
         closeDialog()
     }
 
     fun addCharge(date: LocalDate, description: String, amountText: String, onAdded: () -> Unit) = launchSafely {
-        if (!editable()) return@launchSafely
+        if (!changeable(date)) return@launchSafely
         val amount = Money.parse(amountText)?.takeIf { it > 0 }
             ?: return@launchSafely notify("Escribe un monto mayor a 0")
         if (description.isBlank()) return@launchSafely notify("Escribe qué es el cargo")
@@ -265,7 +286,10 @@ class GarageViewModel(
         onAdded()
     }
 
-    fun removeCharge(chargeId: String) = launchSafely { if (editable()) garage.removeCharge(chargeId) }
+    fun removeCharge(chargeId: String) = launchSafely {
+        val day = state.value.days.find { d -> d.charges.any { it.id == chargeId } } ?: return@launchSafely
+        if (changeable(day.localDate)) garage.removeCharge(chargeId)
+    }
 
     fun saveSettings(rateText: String, autoMark: Boolean) = launchSafely {
         val rate = rateText.takeIf { it.isNotBlank() }?.let {

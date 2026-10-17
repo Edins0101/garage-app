@@ -132,7 +132,11 @@ data class GarageSummary(
     val total: Double = 0.0,
     val paid: Double = 0.0,
     val pending: Double = 0.0,
-)
+    /** Último día pagado por completo (los pagos cubren primero los días más antiguos). Hasta ahí no se edita. */
+    val paidUntil: String? = null,
+) {
+    val paidUntilDate: LocalDate? get() = paidUntil?.let(LocalDate::parse)
+}
 
 @Serializable
 enum class ChecklistKind {

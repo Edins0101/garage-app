@@ -96,6 +96,8 @@ object Palette {
     val OnDark = Color(0xFFFFFFFF)
     val OnDarkSoft: Color get() = p.onDarkSoft
     val Success = Color(0xFF34C77B)
+    /** Días de pago en el calendario (como la estrella del logo). */
+    val Gold = Color(0xFFF2B33D)
     val Danger = Color(0xFFE5486A)
 }
 

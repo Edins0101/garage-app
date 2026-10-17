@@ -82,7 +82,7 @@ private fun WeekdayBand() {
 }
 
 /** Estados visuales de una celda de día. */
-private enum class DayStyle { NORMAL, MARKED, RANGE_START, OUTSIDE }
+private enum class DayStyle { NORMAL, MARKED, PAID, RANGE_START, OUTSIDE }
 
 @Composable
 private fun DayCell(
@@ -92,16 +92,19 @@ private fun DayCell(
     isSelected: Boolean,
     hasNote: Boolean,
     onClick: () -> Unit,
+    /** Día en que se registró un pago: anillo dorado. */
+    isPaymentDay: Boolean = false,
     onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val background = when (style) {
         DayStyle.MARKED -> Palette.Violet
-        DayStyle.RANGE_START -> Palette.Success
+        DayStyle.PAID -> Palette.Success
+        DayStyle.RANGE_START -> Palette.VioletBright
         else -> Color.Transparent
     }
     val textColor = when (style) {
-        DayStyle.MARKED, DayStyle.RANGE_START -> Palette.OnDark
+        DayStyle.MARKED, DayStyle.PAID, DayStyle.RANGE_START -> Palette.OnDark
         DayStyle.OUTSIDE -> Palette.InkSoft.copy(alpha = 0.35f)
         DayStyle.NORMAL -> Palette.Ink
     }
@@ -120,14 +123,18 @@ private fun DayCell(
                 .clip(CircleShape)
                 .background(background)
                 .then(
-                    if (isSelected) Modifier.border(2.dp, Palette.VioletBright, CircleShape) else Modifier,
+                    when {
+                        isPaymentDay -> Modifier.border(3.dp, Palette.Gold, CircleShape)
+                        isSelected -> Modifier.border(2.dp, Palette.VioletBright, CircleShape)
+                        else -> Modifier
+                    },
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 date.dayOfMonth.toString(),
                 fontSize = 18.sp,
-                fontWeight = if (style == DayStyle.MARKED || isToday) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (style == DayStyle.MARKED || style == DayStyle.PAID || isToday) FontWeight.SemiBold else FontWeight.Normal,
                 color = textColor,
             )
         }
@@ -184,6 +191,10 @@ fun MonthCalendar(
     onDayClick: (LocalDate) -> Unit,
     onDayLongClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    /** Días marcados ya cubiertos por los pagos (verde). */
+    paid: Set<LocalDate> = emptySet(),
+    /** Días en que se registró un pago (anillo dorado). */
+    paymentDays: Set<LocalDate> = emptySet(),
 ) {
     val today = LocalDate.now()
     val cells = Dates.monthGrid(month)
@@ -196,6 +207,7 @@ fun MonthCalendar(
                     val inMonth = YearMonth.from(date) == month
                     val style = when {
                         date == rangeStart -> DayStyle.RANGE_START
+                        date in paid -> DayStyle.PAID
                         date in marked -> DayStyle.MARKED
                         !inMonth -> DayStyle.OUTSIDE
                         else -> DayStyle.NORMAL
@@ -206,6 +218,7 @@ fun MonthCalendar(
                         isToday = date == today,
                         isSelected = false,
                         hasNote = date in notes,
+                        isPaymentDay = inMonth && date in paymentDays,
                         onClick = { onDayClick(date) },
                         onLongClick = { onDayLongClick(date) },
                         modifier = Modifier.weight(1f),
