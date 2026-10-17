@@ -28,7 +28,6 @@
 
 ### Pendiente / ideas siguientes
 
-- [ ] **Versión gratis y versión de paga (freemium)**: definir qué queda gratis y qué es de paga (límites de listas/calendarios/grupos, fotos, etc.), cómo se cobra (Google Play Billing, suscripción o pago único) y cómo lo valida el backend
 
 
 - [ ] Probar en un teléfono físico (activar depuración USB) y ajustar tamaños
@@ -74,6 +73,35 @@
 - [x] Compartir un contador con "Puede editar" (ej. la pareja) o "Solo ver" (ej. la niñera)
 - [x] Módulo "Mi carro" (matrícula por placa, mantenimiento por fecha o km). Pico y placa: no (ver PLAN-RECORDATORIOS)
 - [x] Una sola pantalla "Recordatorios" con filtros y categoría "Otros"
+
+## Despliegue en Google Play
+
+Decisión (2026-10-17): publicar primero **gratis, sin cobro**, pero con los límites de la versión de paga
+definidos desde antes, para no quitar después funciones que la gente ya usa. El cobro se programa mientras
+corre la prueba cerrada.
+
+Orden sugerido: Neon → borrar cuenta y privacidad → prueba cerrada → (en paralelo) versión de paga → publicar.
+
+### Infraestructura
+- [ ] **Migrar la base a Neon antes del 2026-11-13** (Render Free borra la base). Luego cambiar `DATABASE_URL` en Render
+- [ ] Que el servidor no se duerma: plan pago de Render (~$7/mes) o un ping periódico. En Free, la primera apertura tarda ~1 min
+- [ ] (Opcional) Dominio propio para la API y los enlaces de invitación (`api.<dominio>`, `<dominio>/join/CODIGO`)
+
+### Requisitos de Google Play
+- [ ] Cuenta de desarrollador de Google Play ($25 una vez + verificación de identidad)
+- [ ] **Borrar la cuenta** desde la app y desde una página web (obligatorio para apps con cuentas)
+- [ ] Política de privacidad publicada en una URL y formulario de "Seguridad de los datos" en Play Console
+- [ ] Ficha de la tienda: ícono 512×512, gráfico destacado 1024×500, capturas, descripción corta y larga
+- [ ] Subir un Android App Bundle (`bundleRelease`) firmado con la llave de `garaje-keys` (Play App Signing)
+- [ ] **Prueba cerrada**: al menos 12 personas durante 14 días seguidos (cuentas personales nuevas), luego pedir acceso a producción
+- [ ] Al pasar a Play: agregar la huella SHA-256 de la llave de Play App Signing a `ANDROID_CERT_SHA256` (App Links)
+
+### Versión gratis y de paga (freemium)
+- [ ] Definir los límites gratis (ej. 3 listas, 1 calendario, 1 grupo de 4 personas; fotos solo en Premium)
+- [ ] Lanzar con todo abierto ("Premium gratis por lanzamiento") o dejar Premium para siempre a los primeros usuarios
+- [ ] Confirmar que Google Play permite cobrar desde Ecuador (perfil de comerciante)
+- [ ] Cobro con Google Play Billing (suscripción y/o pago único) y verificación de la compra en el backend
+- [ ] Respetar los límites en el backend (no solo en la app)
 
 ## Bitácora
 
