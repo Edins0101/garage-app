@@ -26,53 +26,43 @@
   - [x] Enlace https para WhatsApp: `https://arianna-back.onrender.com/join/CODIGO` (App Link verificado; si no hay app, página con el código)
 - [x] Probado en el emulador `Medium_Phone_API_37.0`: navegación, agregar y marcar, generar código, deep link válido e inválido, filtros
 
+### Hecho después del MVP
+
+- [x] **Backend** (`D:\Projects\garaje-backend`): FastAPI + Postgres 18 en Render, endpoints de [API.md](API.md), permisos y JWT
+- [x] API en Render: https://arianna-back.onrender.com (`/health`, `/docs`) y app conectada a producción (`USE_FAKES=false`)
+- [x] Cuenta con correo y contraseña (scrypt) y código de 6 dígitos por correo (OTP) para crear cuenta y recuperar contraseña
+- [x] `ALLOW_DEV_LOGIN=false` en Render (verificado el 2026-10-17: `/auth/dev` responde 404)
+- [x] Tarifa diaria, cargos extra, pagos y resumen "pendiente hasta hoy"; marcado automático diario
+- [x] Inicio personalizable (orden y secciones visibles) y color principal configurable
+- [x] Fotos en las listas con catálogo de productos, fases 1–4 ([PLAN-FOTOS.md](PLAN-FOTOS.md))
+- [x] Pantallas de carga con esqueletos, aviso de "despertando el servidor" y Reintentar
+- [x] Notificaciones push (FCM, proyecto `garage-21c4c`) probadas de punta a punta ([NOTIFICACIONES.md](NOTIFICACIONES.md))
+- [x] Nuevo nombre **Arianna** (`com.arianna.app`, deep links `arianna://`, ícono, saludo) y registrado en Firebase
+- [x] Recordatorios ([PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md)): pagos, Mi hogar, Mi carro y Otros, con hora, anticipación, rango de fechas, lista adjunta y avisos a la hora exacta
+- [x] Mis calendarios (contadores por día): garaje, niñera, expreso…; días pagados en verde, día de pago en dorado, lo pagado no se edita
+- [x] Compartir con "Puede editar" o "Solo ver", y la UI respeta el rol (no deja editar a quien solo ve)
+- [x] Grupos (familia): compartir listas, recordatorios y calendarios con todo el grupo
+- [x] Secciones dentro de las listas (Baño, Patio, Perros…)
+- [x] Enlaces de invitación https que se pueden tocar en WhatsApp (App Links)
+- [x] APK de release firmado con R8 (v0.8.1) e instalado en el teléfono físico del usuario
+
 ### Pendiente / ideas siguientes
 
-
-
-- [ ] Probar en un teléfono físico (activar depuración USB) y ajustar tamaños
-- [ ] Editar el texto o la cantidad de un elemento existente
-- [ ] "Deshacer" en el Snackbar al eliminar un elemento o una lista
-- [ ] Estadísticas del garaje: días por año, racha actual y gráfico mensual
-- [ ] Recordatorios (notificación diaria: "¿el carro está en el garaje hoy?")
-- [ ] Respetar el rol `VIEWER` en la UI (deshabilitar la edición)
-- [ ] Tests unitarios: `Dates`, repositorios fake y ViewModels
-- [x] **Backend** (`D:\Projects\garaje-backend`): FastAPI + Postgres 18 en Render, todos los endpoints de [API.md](API.md), permisos, JWT, 7 tests en verde y migración aplicada
-- [x] API desplegada en Render: https://arianna-back.onrender.com (`/health`, `/docs`)
-- [x] App conectada a producción (`USE_FAKES=false`): login simple con nombre y correo, sesión guardada, cerrar sesión y cierre automático ante un 401
-- [x] Crear cuenta e iniciar sesión con correo y contraseña (scrypt), en el backend y en la app
-- [ ] Poner `ALLOW_DEV_LOGIN=false` en Render: la app ya no usa `/auth/dev`
-- [ ] (Opcional) Login con Google
-- [x] Código de 6 dígitos por correo (OTP) para crear cuenta y recuperar contraseña (backend + app)
-- [ ] Configurar Brevo en Render (`EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM`). Mientras tanto, el código aparece en Render → Logs
-- [ ] Configurar OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
-- [ ] Rotar la contraseña de la base (se compartió en un chat)
-- [ ] **La base de Render vence el 2026-11-13** (plan Free): migrar a Neon antes de esa fecha
-- [x] Tarifa diaria (cada día guarda la suya), cargos extra por día, pagos y resumen "pendiente hasta hoy"
-- [x] Marcado automático diario con la tarifa por defecto (sin cron; los días quitados no reaparecen)
-- [x] Inicio personalizable: el usuario elige qué ver primero (Garaje, Compras o Tareas), puede reordenar y ocultar secciones
-- [x] Color principal configurable ("Apariencia"): violeta, azul, turquesa, verde, ámbar, coral y rosa
-- [x] Mosaicos del menú principal más compactos
+- [ ] Editar el texto o la cantidad de un elemento existente (el backend ya tiene `updateItem`; falta la UI)
+- [ ] "Deshacer" al eliminar un elemento o una lista (hoy solo existe en los recordatorios pagados)
+- [ ] Estadísticas del calendario: días por año, racha actual y gráfico mensual
 - [ ] Guardar las preferencias del inicio y el color en el backend (hoy quedan en el teléfono)
-- [ ] Rotar la contraseña de la base y la clave de Brevo (se vieron en el chat y en una captura)
-- [x] Fotos en las listas con catálogo de productos, fases 1–4 ([PLAN-FOTOS.md](PLAN-FOTOS.md))
-- [x] Pantallas de carga con esqueletos animados, aviso de "despertando el servidor" y botón Reintentar si falla
-- [ ] Configurar en Render las variables `STORAGE_*` (endpoint, región, bucket, claves de Supabase)
-- [ ] Rotar las claves S3 de Supabase y la contraseña de su base (se compartieron en el chat)
-- [x] Notificaciones push (FCM): aviso al agregar elementos o unirse a una lista compartida ([NOTIFICACIONES.md](NOTIFICACIONES.md))
-- [x] Firebase configurado (proyecto `garage-21c4c`): notificaciones probadas de punta a punta en producción
 - [ ] Copia local en la app para funcionar sin conexión
-- [ ] Firma y build de release (`isMinifyEnabled` ya está activo; revisar las reglas de ProGuard con serialization)
+- [ ] Más tests unitarios (hoy solo `RemindersTest`): `Dates`, repositorios fake y ViewModels
+- [ ] Página de invitación: botón para descargar la app si no está instalada
+- [ ] (Opcional) Login con Google: OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
 
-- [x] Nuevo nombre: **Arianna** (paquete `com.arianna.app`, deep links `arianna://`, ícono "A" con estrella, saludo con resumen de pendientes)
-- [x] Registrar `com.arianna.app` en Firebase y poner el nuevo `google-services.json` en `app/`
-- [ ] Cambiar `EMAIL_FROM_NAME` a `Arianna` en Render (si estaba puesto como `Garaje`)
-- [x] Pagos recurrentes con recordatorios ([PLAN-RECORDATORIOS.md](PLAN-RECORDATORIOS.md)): sección compartible, "Ya pagué", historial, deshacer y avisos desde el teléfono
-- [x] Mi hogar (mantenimientos: aire, lavadora, fumigación) sobre el mismo motor de recordatorios
-- [x] Contadores por día: el garaje es un contador más; niñera, expreso, gimnasio, días trabajados (me pagan)
-- [x] Compartir un contador con "Puede editar" (ej. la pareja) o "Solo ver" (ej. la niñera)
-- [x] Módulo "Mi carro" (matrícula por placa, mantenimiento por fecha o km). Pico y placa: no (ver PLAN-RECORDATORIOS)
-- [x] Una sola pantalla "Recordatorios" con filtros y categoría "Otros"
+### Render y seguridad
+
+- [ ] Confirmar en el servicio nuevo `arianna-back` que llegan los correos (`EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME=Arianna`) y las notificaciones (`PUSH_PROVIDER=fcm`, `FIREBASE_SERVICE_ACCOUNT`)
+- [ ] Confirmar que las fotos funcionan en el servicio nuevo (variables `STORAGE_*`)
+- [ ] **Rotar las credenciales que se vieron en el chat**: `JWT_SECRET`, contraseña de la base, clave de Brevo, claves S3 y contraseña de Supabase
+- [ ] La migración a Neon está en "Despliegue en Google Play → Infraestructura"
 
 ## Despliegue en Google Play
 
