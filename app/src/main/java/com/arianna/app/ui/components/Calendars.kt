@@ -160,6 +160,9 @@ fun WeekStrip(
     selected: LocalDate?,
     onDayClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    /** Igual que en el calendario del mes: pagados en verde y día de pago con anillo dorado. */
+    paid: Set<LocalDate> = emptySet(),
+    paymentDays: Set<LocalDate> = emptySet(),
 ) {
     val today = LocalDate.now()
     Column(modifier.fillMaxWidth()) {
@@ -168,10 +171,15 @@ fun WeekStrip(
             days.forEach { date ->
                 DayCell(
                     date = date,
-                    style = if (date in marked) DayStyle.MARKED else DayStyle.NORMAL,
+                    style = when (date) {
+                        in paid -> DayStyle.PAID
+                        in marked -> DayStyle.MARKED
+                        else -> DayStyle.NORMAL
+                    },
                     isToday = date == today,
                     isSelected = date == selected,
                     hasNote = date in notes,
+                    isPaymentDay = date in paymentDays,
                     onClick = { onDayClick(date) },
                     onLongClick = null,
                     modifier = Modifier.weight(1f),

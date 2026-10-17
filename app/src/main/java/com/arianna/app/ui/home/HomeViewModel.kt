@@ -27,7 +27,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import com.arianna.app.domain.model.Payment
 import java.time.LocalDate
+
+/** La cuenta que se ve en la agenda, con sus días y pagos. */
+private data class Agenda(val all: List<Counter>, val counter: Counter?, val days: List<GarageDay>, val payments: List<Payment>)
 
 data class HomeUiState(
     val userName: String = "",
@@ -45,8 +49,14 @@ data class HomeUiState(
     /** Contadores por día; la agenda muestra [counter]. */
     val counters: List<Counter> = emptyList(),
     val counter: Counter? = null,
+    /** Pagos de [counter] (días de pago en la agenda). */
+    val payments: List<Payment> = emptyList(),
     val load: Load = Load.LOADING,
 ) {
+    /** Hasta esta fecha todo está pagado y no se cambia. */
+    val paidUntil: LocalDate? = counter?.summary?.paidUntilDate
+    fun isClosed(date: LocalDate): Boolean = paidUntil?.let { date <= it } ?: false
+    val paymentDates: Set<LocalDate> = payments.map { it.localDate }.toSet()
     /** Lo que debo hasta hoy en todos los contadores "yo pago". */
     private val toPay: Double = counters.filter { it.mine && it.direction == CounterDirection.PAY }
         .sumOf { it.summary.pending.coerceAtLeast(0.0) }
@@ -64,6 +74,7 @@ data class HomeUiState(
     val todoLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.TODO }
 
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
+    val paidDates: Set<LocalDate> = markedDates.filter(::isClosed).toSet()
     val noteDates: Set<LocalDate> = days.filter { it.note != null }.map { it.localDate }.toSet()
     val selectedDay: GarageDay? = days.find { it.localDate == selected }
     val daysThisMonth: Int = days.count {
@@ -125,8 +136,14 @@ class HomeViewModel(
     private val agenda = combine(counters.observeCounters(), chosenCounter) { all, chosen ->
         all to (all.find { it.id == chosen } ?: all.firstOrNull())
     }.flatMapLatest { (all, counter) ->
-        if (counter == null) flowOf(Triple(all, null, emptyList()))
-        else counters.counter(counter.id).observeDays().map { days -> Triple(all, counter, days) }
+        if (counter == null) {
+            flowOf(Agenda(all, null, emptyList(), emptyList()))
+        } else {
+            val repository = counters.counter(counter.id)
+            combine(repository.observeDays(), repository.observePayments()) { days, payments ->
+                Agenda(all, counter, days, payments)
+            }
+        }
     }
 
     val state: StateFlow<HomeUiState> = loadingState(HomeUiState(), { copy(load = it) }) {
@@ -136,7 +153,7 @@ class HomeViewModel(
             lists.observeLists(),
             week,
             reminders.observeReminders(),
-        ) { (name, homePrefs), (all, counter, days), allLists, (anchor, selected), allReminders ->
+        ) { (name, homePrefs), (all, counter, days, payments), allLists, (anchor, selected), allReminders ->
             HomeUiState(
                 userName = name,
                 days = days,
@@ -148,6 +165,7 @@ class HomeViewModel(
                 reminders = allReminders,
                 counters = all,
                 counter = counter,
+                payments = payments,
             )
         }
     }
@@ -183,6 +201,7 @@ class HomeViewModel(
     fun toggleSelected() = launchSafely {
         val counter = state.value.counter ?: return@launchSafely
         val date = state.value.selected
+        if (state.value.isClosed(date)) return@launchSafely notify("Ese día ya está pagado: no se puede cambiar")
         val repository = counters.counter(counter.id)
         if (state.value.selectedDay != null) repository.removeDay(date) else repository.setDay(date)
     }

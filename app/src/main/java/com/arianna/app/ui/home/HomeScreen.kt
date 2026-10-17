@@ -455,6 +455,8 @@ private fun GarageAgenda(
         notes = state.noteDates,
         selected = state.selected,
         onDayClick = onSelect,
+        paid = state.paidDates,
+        paymentDays = state.paymentDates,
     )
     Spacer(Modifier.height(8.dp))
 
@@ -480,6 +482,7 @@ private fun GarageAgenda(
             )
             Text(
                 when {
+                    state.isClosed(state.selected) && day != null -> "Pagado" + (day.note?.let { " · $it" } ?: "")
                     // El garaje conserva sus textos; los demás contadores, genéricos.
                     counter.icon == CounterIcon.CAR && day == null -> "Libre: el carro no está en el garaje"
                     counter.icon == CounterIcon.CAR -> "En el garaje" + (day?.note?.let { " · $it" } ?: "")
@@ -506,7 +509,11 @@ private fun GarageAgenda(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                if (day == null) "MARCAR" else "QUITAR",
+                when {
+                    state.isClosed(state.selected) -> "PAGADO"
+                    day == null -> "MARCAR"
+                    else -> "QUITAR"
+                },
                 style = MaterialTheme.typography.labelLarge,
                 color = Palette.OnDark,
             )
