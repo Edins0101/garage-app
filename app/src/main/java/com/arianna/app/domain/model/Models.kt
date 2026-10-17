@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 /*
@@ -39,7 +40,7 @@ enum class CounterDirection {
     @SerialName("earn") EARN,
 }
 
-/** Mi permiso sobre un contador: dueño, puede editar o solo ver. */
+/** Mi permiso sobre un contador, una lista o una sección: dueño, puede editar o solo ver. */
 @Serializable
 enum class CounterRole {
     @SerialName("owner") OWNER,
@@ -56,11 +57,15 @@ data class Counter(
     val role: CounterRole = CounterRole.OWNER,
     /** Con quién lo comparto (solo lo llena el servidor; en el modo demo, el teléfono). */
     val members: List<SharedMember> = emptyList(),
+    /** Grupos con los que lo comparto. */
+    val groups: List<GroupShare> = emptyList(),
     val name: String,
     val icon: CounterIcon = CounterIcon.OTHER,
     val direction: CounterDirection = CounterDirection.PAY,
     val dailyRate: Double? = null,
     val autoMark: Boolean = false,
+    /** Lista adjunta (ej. las tareas de la niñera). */
+    val listId: String? = null,
     val today: String = LocalDate.now().toString(),
     val summary: GarageSummary = GarageSummary(),
     val createdAt: String,
@@ -204,10 +209,14 @@ data class Checklist(
     val ownerId: String,
     val items: List<ChecklistItem> = emptyList(),
     val sharedWith: List<SharedMember> = emptyList(),
+    val groups: List<GroupShare> = emptyList(),
+    /** Mi permiso (directo o por un grupo); lo calcula el servidor. */
+    val role: CounterRole = CounterRole.OWNER,
     val createdAt: String,
     val updatedAt: String,
 ) {
     val doneCount: Int get() = items.count { it.done }
+    val pendingCount: Int get() = items.size - doneCount
     val progress: Float get() = if (items.isEmpty()) 0f else doneCount.toFloat() / items.size
 }
 
@@ -219,6 +228,7 @@ data class ShareInvite(
     val listId: String? = null,
     val spaceId: String? = null,
     val trackerId: String? = null,
+    val groupId: String? = null,
     val expiresAt: String,
 )
 
@@ -229,6 +239,7 @@ data class JoinResult(
     val listId: String? = null,
     val spaceId: String? = null,
     val trackerId: String? = null,
+    val groupId: String? = null,
     val kind: ReminderKind? = null,
 )
 
@@ -313,6 +324,12 @@ data class Reminder(
     val countFrom: CountFrom = CountFrom.DUE,
     /** Mi carro: también cada tantos km (solo informativo; los avisos son por fecha). */
     val everyKm: Int? = null,
+    /** Hora a la que vence ("20:00" o "20:00:00"). Sin hora: aviso de la mañana. */
+    val dueTime: String? = null,
+    /** Con hora: cuántos minutos antes avisar (0 = a la hora, 60 = 1 hora antes, 1440 = el día anterior). */
+    val alertMinutes: Int? = null,
+    /** Lista adjunta (ej. "Compras del mes" con la lista del súper). */
+    val listId: String? = null,
     val note: String? = null,
     /** Una sola vez y ya hecho. */
     val finished: Boolean = false,
@@ -322,6 +339,7 @@ data class Reminder(
 ) {
     val dueDate: LocalDate get() = LocalDate.parse(nextDue)
     val repeats: Boolean get() = every != null && unit != null
+    val time: LocalTime? get() = dueTime?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
 
     /** A qué kilometraje toca, según el último registrado. */
     val nextKm: Int? get() = everyKm?.let { km -> lastDone?.odometer?.plus(km) }
@@ -335,4 +353,69 @@ data class ReminderSpace(
     val ownerId: String,
     val ownerName: String,
     val members: List<SharedMember> = emptyList(),
+    val groups: List<GroupShare> = emptyList(),
+    /** Mi permiso (directo o por un grupo); lo calcula el servidor. */
+    val role: CounterRole = CounterRole.OWNER,
 )
+
+// ---------------------------------------------------------------- grupos
+
+/** Con qué grupo se compartió algo y con qué permiso. */
+@Serializable
+data class GroupShare(
+    val groupId: String,
+    val groupName: String,
+    val role: MemberRole,
+)
+
+@Serializable
+data class GroupMember(
+    val email: String,
+    val name: String? = null,
+    val userId: String? = null,
+    val status: MemberStatus,
+    val invitedAt: String,
+)
+
+@Serializable
+enum class GroupItemType {
+    @SerialName("list") LIST,
+    @SerialName("space") SPACE,
+    @SerialName("tracker") TRACKER,
+}
+
+/** Algo compartido con un grupo (para la pantalla del grupo). */
+@Serializable
+data class GroupItem(
+    val type: GroupItemType,
+    val id: String,
+    val title: String,
+    /** shopping/todo (lista), payments/home/car/other (sección) o el ícono del contador. */
+    val kind: String,
+    val ownerId: String,
+    val ownerName: String,
+    val role: MemberRole,
+)
+
+@Serializable
+enum class GroupRole {
+    @SerialName("owner") OWNER,
+    @SerialName("member") MEMBER,
+}
+
+/** Grupo de personas (Familia, Roomies…): lo que se comparte con él lo ven todos sus integrantes. */
+@Serializable
+data class Group(
+    val id: String,
+    val name: String,
+    val ownerId: String,
+    val ownerName: String,
+    val role: GroupRole = GroupRole.OWNER,
+    val members: List<GroupMember> = emptyList(),
+    val shared: List<GroupItem> = emptyList(),
+    val createdAt: String,
+) {
+    val mine: Boolean get() = role == GroupRole.OWNER
+    /** Personas en el grupo, contando a quien lo creó. */
+    val size: Int get() = members.size + 1
+}

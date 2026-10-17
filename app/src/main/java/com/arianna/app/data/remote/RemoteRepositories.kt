@@ -54,7 +54,7 @@ import java.time.LocalDate
  * y la UI se actualice después de cada operación.
  */
 
-private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
+internal fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 
 @Serializable private data class NoteBody(val note: String?)
 @Serializable private data class NewListBody(val title: String, val kind: ChecklistKind)
@@ -64,7 +64,7 @@ private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 @Serializable private data class InviteBody(val email: String, val role: MemberRole)
 @Serializable private data class JoinBody(val code: String)
 
-private inline fun <reified T> ApiClient.body(value: T): String = json.encodeToString(serializer<T>(), value)
+internal inline fun <reified T> ApiClient.body(value: T): String = json.encodeToString(serializer<T>(), value)
 
 @Serializable private data class RegisterBody(val name: String, val email: String, val password: String, val code: String)
 @Serializable private data class CodeBody(val email: String, val purpose: CodePurpose)
@@ -111,13 +111,15 @@ class RemoteAuthRepository(
 @Serializable private data class ChargeBody(val description: String, val amount: String)
 @Serializable private data class PaymentBody(val date: String, val amount: String, val note: String?)
 
-@Serializable private data class CounterBody(
-    val name: String,
-    val icon: CounterIcon,
-    val direction: CounterDirection,
-    val dailyRate: String? = null,
-    val autoMark: Boolean? = null,
-)
+/** Con null explícito en listId: así al editar se puede quitar la lista adjunta. */
+private fun counterJson(draft: CounterDraft): String = buildJsonObject {
+    put("name", draft.name.trim())
+    put("icon", draft.icon.name.lowercase())
+    put("direction", draft.direction.name.lowercase())
+    draft.dailyRate?.let { put("dailyRate", Money.toApi(it)) }
+    put("autoMark", draft.autoMark)
+    put("listId", draft.listId)
+}.toString()
 
 class RemoteCountersRepository(private val api: ApiClient) : CountersRepository {
     private val counters = MutableStateFlow<List<Counter>>(emptyList())
@@ -130,15 +132,13 @@ class RemoteCountersRepository(private val api: ApiClient) : CountersRepository 
     }
 
     override suspend fun create(draft: CounterDraft): Counter {
-        val body = CounterBody(draft.name.trim(), draft.icon, draft.direction, draft.dailyRate?.let(Money::toApi), draft.autoMark)
-        val counter = api.request("POST", "/trackers", api.body(body), Counter.serializer())!!
+        val counter = api.request("POST", "/trackers", counterJson(draft), Counter.serializer())!!
         refresh()
         return counter
     }
 
     override suspend fun update(counter: Counter, draft: CounterDraft) {
-        val body = CounterBody(draft.name.trim(), draft.icon, draft.direction, draft.dailyRate?.let(Money::toApi), draft.autoMark)
-        api.request("PATCH", "/trackers/${enc(counter.id)}", api.body(body), Counter.serializer())
+        api.request("PATCH", "/trackers/${enc(counter.id)}", counterJson(draft), Counter.serializer())
         scoped[counter.id]?.refresh() ?: refresh()
     }
 
@@ -379,8 +379,8 @@ class RemoteSharingRepository(
 
     override suspend fun joinByCode(code: String): JoinResult {
         val result = api.request("POST", "/join", api.body(JoinBody(code)), JoinResult.serializer())!!
-        if (result.listId != null) lists.refresh()
-        result.trackerId?.let { counters?.refresh() }
+        if (result.listId != null || result.groupId != null) lists.refresh()
+        if (result.trackerId != null || result.groupId != null) counters?.refresh()
         return result
     }
 }
@@ -413,6 +413,9 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
         put("notifyDaysBefore", draft.notifyDaysBefore)
         put("countFrom", draft.countFrom.name.lowercase())
         put("everyKm", draft.everyKm)
+        put("dueTime", draft.dueTime?.let { "%02d:%02d".format(it.hour, it.minute) })
+        put("alertMinutes", draft.alertMinutes.takeIf { draft.dueTime != null })
+        put("listId", draft.listId)
         put("note", draft.note?.trim()?.takeIf { it.isNotEmpty() })
     }
 

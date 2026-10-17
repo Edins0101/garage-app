@@ -1,5 +1,6 @@
 package com.arianna.app.data.fake
 
+import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.GarageSettings
@@ -45,6 +46,8 @@ data class FakeDb(
     val reminderLogs: Map<String, List<ReminderLog>> = emptyMap(),
     /** Día del mes original de cada recordatorio (para los meses cortos). */
     val anchorDays: Map<String, Int> = emptyMap(),
+    /** Grupos (sin otros usuarios: los integrantes quedan pendientes). */
+    val groups: List<Group> = emptyList(),
 )
 
 /**

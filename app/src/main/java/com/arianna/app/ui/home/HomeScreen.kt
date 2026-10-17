@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.NotificationsActive
 import com.arianna.app.ui.reminders.KindCopy
 import com.arianna.app.ui.reminders.kindIcon
+import androidx.compose.material.icons.outlined.Diversity3
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
@@ -119,6 +120,7 @@ fun HomeScreen(
     onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
+    onOpenGroups: () -> Unit,
 ) {
     val viewModel = appViewModel { HomeViewModel(it.auth, it.counters, it.lists, it.reminders, it.homePrefs) }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -234,6 +236,7 @@ fun HomeScreen(
                         onOpenCounters = onOpenCounters,
                         onOpenReminders = onOpenReminders,
                         onOpenLists = onOpenLists,
+                        onOpenGroups = onOpenGroups,
                     )
                     Spacer(Modifier.height(28.dp))
                 }
@@ -351,6 +354,7 @@ private fun MainMenu(
     onOpenCounters: () -> Unit,
     onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
+    onOpenGroups: () -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
@@ -362,6 +366,7 @@ private fun MainMenu(
         }
     }
     val extras = listOf(
+        MenuEntry(Icons.Outlined.Diversity3, "Grupos", onOpenGroups),
         MenuEntry(Icons.Outlined.Groups, "Compartidas") { onOpenLists(ListsRoute(filter = "shared")) },
         MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
     )

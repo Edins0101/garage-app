@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arianna.app.domain.model.Group
+import com.arianna.app.domain.model.GroupShare
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.MemberStatus
 import com.arianna.app.domain.model.ShareInvite
@@ -52,6 +55,16 @@ import java.time.Instant
 import java.time.ZoneId
 
 private fun roleLabel(role: MemberRole) = if (role == MemberRole.EDITOR) "Puede editar" else "Solo ver"
+
+/** Compartir con mis grupos desde la hoja: cada grupo en "No", "Puede editar" o "Solo ver". */
+data class GroupSharing(
+    val groups: List<Group>,
+    /** Con qué grupos ya está compartido. */
+    val shared: List<GroupShare>,
+    val onShare: (Group, MemberRole?) -> Unit,
+    /** Abre la pantalla de grupos (para crear uno). */
+    val onOpenGroups: () -> Unit,
+)
 
 /**
  * Hoja para compartir una lista o una sección de recordatorios: código, correo y miembros.
@@ -76,6 +89,8 @@ fun ShareSheet(
     emptyMembers: String = "Todavía nadie más ve esta lista.",
     /** Contenido debajo del título (ej. elegir qué categoría compartir). */
     header: @Composable ColumnScope.() -> Unit = {},
+    /** Compartir con un grupo (Familia, Roomies…); null lo oculta. */
+    groups: GroupSharing? = null,
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     var email by rememberSaveable { mutableStateOf("") }
@@ -110,6 +125,8 @@ fun ShareSheet(
                         .padding(12.dp),
                 )
             }
+
+            if (groups != null) GroupSection(groups)
 
             if (onSendText != null) {
                 Section("Enviar como mensaje") {
@@ -211,6 +228,55 @@ fun ShareSheet(
             }
             extra()
         }
+    }
+}
+
+@Composable
+private fun GroupSection(sharing: GroupSharing) {
+    Section("Con un grupo") {
+        if (sharing.groups.isEmpty()) {
+            Text(
+                "Crea un grupo (Familia, Roomies…) y comparte con todos de una vez. Quien entre después también lo verá.",
+                color = Palette.InkSoft,
+                fontSize = 14.sp,
+            )
+            PillButton("Crear un grupo", onClick = sharing.onOpenGroups, icon = Icons.Outlined.Groups, light = true, modifier = Modifier.fillMaxWidth())
+            return@Section
+        }
+        sharing.groups.forEach { group ->
+            val current = sharing.shared.find { it.groupId == group.id }?.role
+            Column(Modifier.padding(vertical = 4.dp)) {
+                Text(group.name, color = Palette.Ink, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (group.size == 1) "Solo tú por ahora" else "${group.size} personas",
+                    color = Palette.InkSoft,
+                    fontSize = 13.sp,
+                )
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf<MemberRole?>(null, MemberRole.EDITOR, MemberRole.VIEWER).forEach { option ->
+                        FilterChip(
+                            selected = current == option,
+                            onClick = { if (current != option) sharing.onShare(group, option) },
+                            label = { Text(option?.let(::roleLabel) ?: "No", style = MaterialTheme.typography.bodyMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Palette.Violet,
+                                selectedLabelColor = Palette.OnDark,
+                                labelColor = Palette.Ink,
+                            ),
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(color = Palette.Divider)
+        }
+        Text(
+            "ADMINISTRAR GRUPOS",
+            style = MaterialTheme.typography.labelLarge,
+            color = Palette.Violet,
+            modifier = Modifier
+                .clickable(onClick = sharing.onOpenGroups)
+                .padding(vertical = 6.dp),
+        )
     }
 }
 

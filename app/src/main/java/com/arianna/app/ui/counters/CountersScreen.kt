@@ -32,7 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.Counter
+import com.arianna.app.domain.repository.ListsRepository
 import com.arianna.app.domain.model.CounterDirection
 import com.arianna.app.domain.repository.CounterDraft
 import com.arianna.app.domain.repository.CountersRepository
@@ -56,10 +58,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 
 data class CountersUiState(
     val counters: List<Counter> = emptyList(),
+    /** Para adjuntar una lista al crear un contador. */
+    val lists: List<Checklist> = emptyList(),
     val creating: Boolean = false,
     val busy: Boolean = false,
     val load: Load = Load.LOADING,
@@ -70,7 +75,7 @@ data class CountersUiState(
     val toCollect: Double = mine.filter { it.direction == CounterDirection.EARN }.sumOf { it.summary.pending.coerceAtLeast(0.0) }
 }
 
-class CountersViewModel(private val counters: CountersRepository) : BaseViewModel() {
+class CountersViewModel(private val counters: CountersRepository, lists: ListsRepository) : BaseViewModel() {
     private val ui = MutableStateFlow(CountersUiState())
     private val _opened = MutableSharedFlow<String>(extraBufferCapacity = 1)
 
@@ -78,7 +83,9 @@ class CountersViewModel(private val counters: CountersRepository) : BaseViewMode
     val opened: SharedFlow<String> = _opened.asSharedFlow()
 
     val state: StateFlow<CountersUiState> = loadingState(ui.value, { copy(load = it) }) {
-        combine(ui, counters.observeCounters()) { current, list -> current.copy(counters = list) }
+        combine(ui, counters.observeCounters(), lists.observeLists().catch { emit(emptyList()) }) { current, list, allLists ->
+            current.copy(counters = list, lists = allLists)
+        }
     }
 
     fun openCreate(open: Boolean) {
@@ -100,7 +107,7 @@ class CountersViewModel(private val counters: CountersRepository) : BaseViewMode
 /** Mis contadores por día (garaje, niñera, expreso…) con lo que debo o me deben de cada uno. */
 @Composable
 fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
-    val viewModel = appViewModel { CountersViewModel(it.counters) }
+    val viewModel = appViewModel { CountersViewModel(it.counters, it.lists) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -182,6 +189,7 @@ fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     if (state.creating) {
         CounterDialog(
             counter = null,
+            lists = state.lists,
             busy = state.busy,
             onSave = viewModel::create,
             onDismiss = { viewModel.openCreate(false) },

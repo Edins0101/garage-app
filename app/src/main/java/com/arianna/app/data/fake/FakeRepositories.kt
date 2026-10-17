@@ -16,6 +16,7 @@ import com.arianna.app.domain.repository.CounterDraft
 import com.arianna.app.domain.repository.CountersRepository
 import kotlinx.serialization.Serializable
 import com.arianna.app.domain.model.ImageSource
+import com.arianna.app.domain.model.GroupShare
 import com.arianna.app.domain.model.JoinResult
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
@@ -130,6 +131,7 @@ class FakeCountersRepository(private val store: FakeStore) : CountersRepository 
                 autoMark = draft.autoMark,
                 autoFilledUntil = if (draft.autoMark) LocalDate.now().minusDays(1).toString() else null,
                 createdAt = now(),
+                listId = draft.listId,
             ).let(::backfill)
             val migrated = db.withCounters()
             migrated.copy(counters = migrated.counters + counter) to counter.toCounter()
@@ -140,7 +142,7 @@ class FakeCountersRepository(private val store: FakeStore) : CountersRepository 
         validate(draft)
         store.update { db ->
             db.withCounter(counter.id) { current ->
-                current.copy(name = draft.name.trim(), icon = draft.icon, direction = draft.direction)
+                current.copy(name = draft.name.trim(), icon = draft.icon, direction = draft.direction, listId = draft.listId)
                     .withSettings(draft.dailyRate, draft.autoMark)
             } to Unit
         }
@@ -207,12 +209,16 @@ data class FakeCounter(
     val days: List<GarageDay> = emptyList(),
     val payments: List<Payment> = emptyList(),
     val members: List<SharedMember> = emptyList(),
+    val groups: List<GroupShare> = emptyList(),
+    val listId: String? = null,
 ) {
     fun toCounter() = Counter(
         id = id,
         ownerId = FakeSeed.currentUser.id,
         ownerName = FakeSeed.currentUser.name,
         members = members,
+        groups = groups,
+        listId = listId,
         name = name,
         icon = icon,
         direction = direction,
@@ -635,6 +641,7 @@ class FakeSharingRepository(private val store: FakeStore) : SharingRepository {
         } ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)
         // Sin backend no existe otro usuario real: en el mock "unirse" solo abre la lista, la sección o el contador.
         invite.trackerId?.let { return JoinResult(type = "tracker", trackerId = it) }
+        invite.groupId?.let { return JoinResult(type = "group", groupId = it) }
         invite.spaceId?.let { spaceId ->
             val space = db.spaces.find { it.id == spaceId }
                 ?: throw DataException("Código inválido o vencido", DataException.Kind.NOT_FOUND)
@@ -706,6 +713,9 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
                 everyKm = draft.everyKm,
+                dueTime = draft.dueTime?.toString(),
+                alertMinutes = draft.alertMinutes.takeIf { draft.dueTime != null },
+                listId = draft.listId,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = now(),
                 updatedAt = now(),
@@ -731,6 +741,9 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
                 everyKm = draft.everyKm,
+                dueTime = draft.dueTime?.toString(),
+                alertMinutes = draft.alertMinutes.takeIf { draft.dueTime != null },
+                listId = draft.listId,
                 note = draft.note?.trim()?.takeIf { it.isNotEmpty() },
                 finished = if (dateChanged) false else current.finished,
             )

@@ -90,12 +90,13 @@ import com.arianna.app.ui.components.combinedClickableCompat
 import com.arianna.app.ui.theme.Palette
 
 @Composable
-fun ListDetailScreen(onBack: () -> Unit) {
+fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
     val viewModel = appViewModel {
         ListDetailViewModel(
             createSavedStateHandle(),
             it.lists,
             it.sharing,
+            it.groups,
             demoMode = it.useFakes,
             currentUserId = it.auth.session.value?.user?.id,
         )
@@ -354,6 +355,10 @@ fun ListDetailScreen(onBack: () -> Unit) {
             onInvite = viewModel::invite,
             onRemoveMember = viewModel::removeMember,
             onDismiss = { sharing = false },
+            groups = GroupSharing(state.groups, list.groups, viewModel::shareWithGroup) {
+                sharing = false
+                onOpenGroups()
+            },
         )
     }
     if (renaming && list != null) {

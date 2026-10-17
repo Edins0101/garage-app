@@ -9,6 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import com.arianna.app.ui.counters.CountersScreen
+import com.arianna.app.ui.groups.GroupScreen
+import com.arianna.app.ui.groups.GroupsScreen
+import com.arianna.app.domain.model.GroupItemType
 import com.arianna.app.ui.garage.GarageScreen
 import com.arianna.app.ui.home.HomeScreen
 import com.arianna.app.ui.lists.JoinScreen
@@ -49,6 +52,13 @@ data class RemindersRoute(val kind: String)
 @Serializable
 data class JoinRoute(val code: String)
 
+/** Mis grupos (Familia, Roomies…). */
+@Serializable
+object GroupsRoute
+
+@Serializable
+data class GroupRoute(val id: String)
+
 @Composable
 fun AppNavHost(navController: NavHostController) {
     NavHost(
@@ -64,6 +74,28 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenReminders = { kind -> navController.navigate(RemindersRoute(kind?.apiName ?: "all")) },
                 onOpenLists = { route -> navController.navigate(route) },
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
+                onOpenGroups = { navController.navigate(GroupsRoute) },
+            )
+        }
+        composable<GroupsRoute> {
+            GroupsScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { id -> navController.navigate(GroupRoute(id)) },
+            )
+        }
+        composable<GroupRoute> { entry ->
+            GroupScreen(
+                groupId = entry.toRoute<GroupRoute>().id,
+                onBack = { if (!navController.popBackStack()) navController.navigate(HomeRoute) },
+                onOpenItem = { item ->
+                    navController.navigate(
+                        when (item.type) {
+                            GroupItemType.LIST -> ListDetailRoute(item.id)
+                            GroupItemType.SPACE -> RemindersRoute(item.kind)
+                            GroupItemType.TRACKER -> CounterRoute(item.id)
+                        },
+                    )
+                },
             )
         }
         composable<CountersRoute> {
@@ -76,7 +108,12 @@ fun AppNavHost(navController: NavHostController) {
             // Al tocar el aviso de un pago en un contador compartido.
             deepLinks = listOf(navDeepLink<CounterRoute>(basePath = "arianna://counter")),
         ) { entry ->
-            GarageScreen(counterId = entry.toRoute<CounterRoute>().id, onBack = { navController.popBackStack() })
+            GarageScreen(
+                counterId = entry.toRoute<CounterRoute>().id,
+                onBack = { navController.popBackStack() },
+                onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
+                onOpenGroups = { navController.navigate(GroupsRoute) },
+            )
         }
         composable<RemindersRoute>(
             deepLinks = listOf(navDeepLink<RemindersRoute>(basePath = "arianna://reminders")),
@@ -84,6 +121,8 @@ fun AppNavHost(navController: NavHostController) {
             RemindersScreen(
                 initialFilter = ReminderKind.fromApi(entry.toRoute<RemindersRoute>().kind),
                 onBack = { if (!navController.popBackStack()) navController.navigate(HomeRoute) },
+                onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
+                onOpenGroups = { navController.navigate(GroupsRoute) },
             )
         }
         composable<ListsRoute> { entry ->
@@ -98,7 +137,10 @@ fun AppNavHost(navController: NavHostController) {
             // Al tocar una notificación de lista compartida.
             deepLinks = listOf(navDeepLink<ListDetailRoute>(basePath = "arianna://list")),
         ) {
-            ListDetailScreen(onBack = { navController.popBackStack() })
+            ListDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenGroups = { navController.navigate(GroupsRoute) },
+            )
         }
         composable<JoinRoute>(
             deepLinks = listOf(navDeepLink<JoinRoute>(basePath = "arianna://join")),
@@ -108,6 +150,7 @@ fun AppNavHost(navController: NavHostController) {
                 onJoined = { result ->
                     val target: Any = result.listId?.let(::ListDetailRoute)
                         ?: result.trackerId?.let(::CounterRoute)
+                        ?: result.groupId?.let(::GroupRoute)
                         ?: RemindersRoute(result.kind?.apiName ?: "all")
                     navController.navigate(target) {
                         popUpTo<JoinRoute> { inclusive = true }

@@ -42,7 +42,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.Counter
+import com.arianna.app.ui.common.ListPicker
 import com.arianna.app.domain.model.CounterDirection
 import com.arianna.app.domain.model.CounterIcon
 import com.arianna.app.domain.repository.CounterDraft
@@ -127,6 +129,8 @@ private fun ChipText(text: String) = Text(text, style = MaterialTheme.typography
 @Composable
 fun CounterDialog(
     counter: Counter?,
+    /** Listas que se pueden adjuntar (ej. las tareas de la niñera). */
+    lists: List<Checklist>,
     busy: Boolean,
     onSave: (CounterDraft) -> Unit,
     onDismiss: () -> Unit,
@@ -137,6 +141,7 @@ fun CounterDialog(
     var direction by rememberSaveable { mutableStateOf(counter?.direction ?: CounterDirection.PAY) }
     var rate by rememberSaveable { mutableStateOf(counter?.dailyRate?.asInput().orEmpty()) }
     var autoMark by rememberSaveable { mutableStateOf(counter?.autoMark ?: false) }
+    var listId by rememberSaveable { mutableStateOf(counter?.listId) }
     val rateValue = Money.parse(rate)
     val rateOk = rate.isBlank() || rateValue != null
     val autoOk = !autoMark || rateValue != null
@@ -216,6 +221,7 @@ fun CounterDialog(
                         colors = SwitchDefaults.colors(checkedTrackColor = Palette.Violet),
                     )
                 }
+                ListPicker(lists, listId, { listId = it }, hint = "Ej. las tareas de la niñera o lo que hay que hacer en el garaje.")
                 if (!rateOk) Text("La tarifa no es un monto válido", color = Palette.Danger, fontSize = 13.sp)
                 if (rateOk && !autoOk) Text("Pon la tarifa para marcar cada día solo", color = Palette.Danger, fontSize = 13.sp)
                 if (onDelete != null) {
@@ -226,7 +232,7 @@ fun CounterDialog(
         confirmButton = {
             TextButton(
                 enabled = name.isNotBlank() && rateOk && autoOk && !busy,
-                onClick = { onSave(CounterDraft(name, icon, direction, rateValue, autoMark)) },
+                onClick = { onSave(CounterDraft(name, icon, direction, rateValue, autoMark, listId)) },
             ) { Text(if (busy) "Guardando…" else "Guardar", color = Palette.Violet) }
         },
         dismissButton = {

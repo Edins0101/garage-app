@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 class RemindersTest {
     private val today = LocalDate.of(2026, 10, 16)
@@ -88,5 +89,35 @@ class RemindersTest {
         assertEquals(LocalDate.of(2026, 11, 1), Plates.nextRegistration(0, today))
         assertEquals(today, Plates.nextRegistration(9, today))
         assertEquals(LocalDate.of(2027, 4, 1), Plates.nextRegistration(3, today))
+    }
+
+    @Test
+    fun timedRemindersAlertAtTheirHourNotInTheMorning() {
+        val pill = reminder(today).copy(title = "Pastilla", dueTime = "20:00:00", alertMinutes = 0)
+        // En la mañana no se avisa (llega a su hora); vencido sí se recuerda.
+        assertTrue(ReminderRules.notices(listOf(pill), today).isEmpty())
+        assertEquals(1, ReminderRules.notices(listOf(pill.copy(nextDue = today.minusDays(1).toString())), today).size)
+
+        val morning = today.atTime(8, 0)
+        val alarm = ReminderRules.alarms(listOf(pill), morning).single()
+        assertEquals(today.atTime(20, 0), alarm.at)
+        assertEquals("Es hora: «Pastilla»", alarm.title)
+
+        // Una hora antes y el día anterior.
+        val hourBefore = ReminderRules.alarms(listOf(pill.copy(alertMinutes = 60)), morning).single()
+        assertEquals(today.atTime(19, 0), hourBefore.at)
+        assertEquals("«Pastilla» a las 8:00 p. m.", hourBefore.title)
+        val dayBefore = ReminderRules.alarms(
+            listOf(pill.copy(nextDue = today.plusDays(1).toString(), alertMinutes = 1440)), morning,
+        ) { "Faltan 3 cosas en «Súper»" }.single()
+        assertEquals("«Pastilla» mañana a las 8:00 p. m.", dayBefore.title)
+        assertTrue(dayBefore.body.startsWith("Faltan 3 cosas en «Súper»"))
+
+        // Ya pasó la hora, está hecho o queda fuera de la ventana: no se programa.
+        assertTrue(ReminderRules.alarms(listOf(pill), LocalDateTime.of(today.year, today.month, today.dayOfMonth, 21, 0)).isEmpty())
+        assertTrue(ReminderRules.alarms(listOf(pill.copy(finished = true)), morning).isEmpty())
+        assertTrue(ReminderRules.alarms(listOf(pill.copy(nextDue = today.plusDays(30).toString())), morning).isEmpty())
+        // Sin hora no hay alarma.
+        assertTrue(ReminderRules.alarms(listOf(reminder(today.plusDays(1))), morning).isEmpty())
     }
 }

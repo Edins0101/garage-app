@@ -1,5 +1,7 @@
 package com.arianna.app.domain.repository
 
+import com.arianna.app.domain.model.Group
+import com.arianna.app.domain.model.GroupMember
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
+import java.time.LocalTime
 
 /*
  * Contratos de datos. La UI y los ViewModels solo dependen de estas interfaces;
@@ -76,6 +79,8 @@ data class CounterDraft(
     val direction: CounterDirection,
     val dailyRate: Double?,
     val autoMark: Boolean,
+    /** Lista adjunta (null = ninguna). */
+    val listId: String? = null,
 )
 
 /**
@@ -191,6 +196,12 @@ data class ReminderDraft(
     val countFrom: CountFrom,
     /** Mi carro: cada tantos km (opcional). */
     val everyKm: Int? = null,
+    /** Hora a la que vence; null = sin hora (aviso de la mañana). */
+    val dueTime: LocalTime? = null,
+    /** Con hora: minutos de anticipación del aviso. */
+    val alertMinutes: Int? = null,
+    /** Lista adjunta (null = ninguna). */
+    val listId: String? = null,
 )
 
 /**
@@ -225,4 +236,33 @@ class DataException(
     val kind: Kind = Kind.UNKNOWN,
 ) : Exception(message) {
     enum class Kind { NOT_FOUND, INVALID, FORBIDDEN, UNAUTHORIZED, NETWORK, UNKNOWN }
+}
+
+/** Qué se comparte con un grupo. */
+sealed interface ShareTarget {
+    val id: String
+
+    data class ListTarget(override val id: String) : ShareTarget
+    data class SpaceTarget(override val id: String) : ShareTarget
+    data class CounterTarget(override val id: String) : ShareTarget
+}
+
+/** Grupos (Familia, Roomies…): se comparte una lista, sección o contador con todo el grupo. */
+interface GroupsRepository {
+    /** Mis grupos (primero los que creé) con sus integrantes y lo compartido. */
+    fun observeGroups(): Flow<List<Group>>
+    suspend fun refresh()
+
+    suspend fun create(name: String): Group
+    suspend fun rename(group: Group, name: String)
+    suspend fun delete(group: Group)
+
+    /** Agrega por correo (solo quien creó el grupo). Si ya tiene cuenta, entra de inmediato. */
+    suspend fun addMember(group: Group, email: String): GroupMember
+    /** Quien creó el grupo quita a cualquiera; un integrante puede salirse con su correo. */
+    suspend fun removeMember(group: Group, email: String)
+    suspend fun createInvite(group: Group): ShareInvite
+
+    /** Comparte con el grupo con ese permiso; [role] null deja de compartir. */
+    suspend fun share(target: ShareTarget, group: Group, role: MemberRole?)
 }

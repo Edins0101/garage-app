@@ -1,7 +1,12 @@
 package com.arianna.app.ui.garage
 
 import androidx.lifecycle.viewModelScope
+import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.GarageDay
+import com.arianna.app.domain.model.Group
+import com.arianna.app.domain.repository.GroupsRepository
+import com.arianna.app.domain.repository.ListsRepository
+import com.arianna.app.domain.repository.ShareTarget
 import com.arianna.app.domain.model.GarageSettings
 import com.arianna.app.domain.model.GarageSummary
 import com.arianna.app.domain.model.Payment
@@ -20,6 +25,7 @@ import com.arianna.app.util.Money
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -52,11 +58,15 @@ data class GarageUiState(
     val dialog: GarageDialog? = null,
     /** El contador que se está viendo (nombre, ícono, dirección). */
     val counter: Counter? = null,
+    /** Listas que puedo ver (lista adjunta) y mis grupos (para compartir). */
+    val lists: List<Checklist> = emptyList(),
+    val groups: List<Group> = emptyList(),
     val invite: ShareInvite? = null,
     val busy: Boolean = false,
     val load: Load = Load.LOADING,
 ) {
     val canEdit: Boolean = counter?.canEdit ?: true
+    val linkedList: Checklist? = counter?.listId?.let { id -> lists.find { it.id == id } }
     val mine: Boolean = counter?.mine ?: true
     val copy: CounterCopy = CounterCopy.of(counter?.direction ?: CounterDirection.PAY)
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
@@ -84,10 +94,14 @@ private data class LocalState(
     val busy: Boolean = false,
 )
 
+private data class Related(val ui: LocalState, val counter: Counter?, val lists: List<Checklist>, val groups: List<Group>)
+
 /** Calendario, tarifa, cargos y pagos de un contador (el garaje es uno más). */
 class GarageViewModel(
     private val counterId: String,
     private val counters: CountersRepository,
+    lists: ListsRepository,
+    private val groups: GroupsRepository,
     private val myEmail: String,
     val demoMode: Boolean,
 ) : BaseViewModel() {
@@ -97,14 +111,20 @@ class GarageViewModel(
 
     val state: StateFlow<GarageUiState> = loadingState(GarageUiState(), { copy(load = it) }) {
         combine(
-            combine(local, counters.observeCounters()) { ui, all -> ui to all.find { it.id == counterId } },
+            combine(
+                local,
+                counters.observeCounters(),
+                lists.observeLists().catch { emit(emptyList()) },
+                groups.observeGroups().catch { emit(emptyList()) },
+            ) { ui, all, allLists, myGroups -> Related(ui, all.find { it.id == counterId }, allLists, myGroups) },
             garage.observeDays(),
             garage.observeSettings(),
             garage.observeSummary(),
             garage.observePayments(),
-        ) { (ui, counter), days, settings, summary, payments ->
+        ) { (ui, counter, allLists, myGroups), days, settings, summary, payments ->
             GarageUiState(
-                ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog, counter, ui.invite, ui.busy,
+                ui.month, ui.mode, ui.rangeStart, days, settings, summary, payments, ui.dialog, counter, allLists, myGroups,
+                ui.invite, ui.busy,
             )
         }
     }
@@ -145,6 +165,12 @@ class GarageViewModel(
 
     fun removeMember(email: String) = launchSafely {
         state.value.counter?.let { counters.removeMember(it, email) }
+    }
+
+    /** Compartir con un grupo (o dejar de hacerlo con role null). */
+    fun shareWithGroup(group: Group, role: MemberRole?) = launchSafely {
+        groups.share(ShareTarget.CounterTarget(counterId), group, role)
+        notify(if (role == null) "Ya no se comparte con «${group.name}»" else "Compartido con «${group.name}»")
     }
 
     fun leave(onLeft: () -> Unit) = launchSafely {

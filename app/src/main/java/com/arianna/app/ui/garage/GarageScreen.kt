@@ -59,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arianna.app.domain.model.GarageDay
 import com.arianna.app.domain.model.Payment
 import com.arianna.app.ui.common.CollectMessages
+import com.arianna.app.ui.common.LinkedListCard
+import com.arianna.app.ui.lists.GroupSharing
 import com.arianna.app.ui.common.ConfirmDialog
 import com.arianna.app.ui.common.appViewModel
 import com.arianna.app.ui.components.CosmicBackground
@@ -79,10 +81,10 @@ import java.time.LocalDate
 
 /** Calendario y cuenta de un contador por día (el garaje es uno más). */
 @Composable
-fun GarageScreen(counterId: String, onBack: () -> Unit) {
+fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> Unit, onOpenGroups: () -> Unit) {
     val viewModel = appViewModel(key = "counter-$counterId") { container ->
         val email = container.auth.session.value?.user?.email.orEmpty()
-        GarageViewModel(counterId, container.counters, email, container.useFakes)
+        GarageViewModel(counterId, container.counters, container.lists, container.groups, email, container.useFakes)
     }
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -132,6 +134,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
                             onSettings = viewModel::openSettings,
                             onPay = viewModel::openPayment,
                         )
+                        if (state.counter?.listId != null) LinkedListCard(state.linkedList, onOpenList)
                         if (state.canEdit) ModeCard(state = state, onMode = viewModel::setMode)
                         Spacer(Modifier.height(10.dp))
                     }
@@ -243,6 +246,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
         GarageDialog.EditCounter -> state.counter?.let { counter ->
             CounterDialog(
                 counter = counter,
+                lists = state.lists,
                 busy = false,
                 onSave = viewModel::saveCounter,
                 onDismiss = viewModel::closeDialog,
@@ -272,6 +276,10 @@ fun GarageScreen(counterId: String, onBack: () -> Unit) {
                     "Con \"Solo ver\" ve los días y cuánto se debe (ej. la niñera). Solo tú cambias la tarifa.",
                 codeHint = "Quien use el código entra como \"Solo ver\". Para darle edición, invita su correo.",
                 emptyMembers = "Todavía nadie más ve este contador.",
+                groups = GroupSharing(state.groups, counter.groups, viewModel::shareWithGroup) {
+                    viewModel.closeDialog()
+                    onOpenGroups()
+                },
             )
         }
         GarageDialog.Leave -> ConfirmDialog(

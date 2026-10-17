@@ -2,6 +2,7 @@ package com.arianna.app.util
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
@@ -32,6 +33,12 @@ object Dates {
     fun shortDay(date: LocalDate): String {
         val month = date.month.getDisplayName(TextStyle.SHORT, locale).trimEnd('.').uppercase(locale)
         return "${date.dayOfMonth} $month"
+    }
+
+    /** "8:30 p. m." (como se dice en Ecuador). */
+    fun time(time: LocalTime): String {
+        val hour = (time.hour % 12).let { if (it == 0) 12 else it }
+        return "$hour:%02d %s".format(time.minute, if (time.hour < 12) "a. m." else "p. m.")
     }
 
     fun startOfWeek(date: LocalDate): LocalDate =

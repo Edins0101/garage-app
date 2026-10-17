@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arianna.app.domain.model.Reminder
+import com.arianna.app.ui.common.listProgressLabel
+import com.arianna.app.ui.lists.GroupSharing
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.ui.common.CollectMessages
 import com.arianna.app.ui.common.ConfirmDialog
@@ -74,10 +76,18 @@ import java.text.NumberFormat
 
 /** Recordatorios de todas las categorías, con filtros. [initialFilter] null = Todos. */
 @Composable
-fun RemindersScreen(initialFilter: ReminderKind?, onBack: () -> Unit) {
+fun RemindersScreen(
+    initialFilter: ReminderKind?,
+    onBack: () -> Unit,
+    onOpenList: (String) -> Unit,
+    onOpenGroups: () -> Unit,
+) {
     val viewModel = appViewModel(key = "reminders-${initialFilter?.apiName ?: "all"}") { container ->
         val user = container.auth.session.value?.user
-        RemindersViewModel(initialFilter, container.reminders, user?.id.orEmpty(), user?.email.orEmpty(), container.useFakes)
+        RemindersViewModel(
+            initialFilter, container.reminders, container.lists, container.groups,
+            user?.id.orEmpty(), user?.email.orEmpty(), container.useFakes,
+        )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -146,6 +156,7 @@ fun RemindersScreen(initialFilter: ReminderKind?, onBack: () -> Unit) {
             initialKind = dialog.kind,
             spacesFor = state::writableSpaces,
             myId = state.myId,
+            lists = state.lists,
             busy = state.busy,
             onSave = { kind, draft, spaceId -> viewModel.save(dialog.reminder, kind, draft, spaceId) },
             onDismiss = viewModel::close,
@@ -162,7 +173,12 @@ fun RemindersScreen(initialFilter: ReminderKind?, onBack: () -> Unit) {
                 owner = state.ownerLabel(reminder),
                 canEdit = state.canEdit(reminder),
                 history = state.history,
+                linkedList = state.linkedList(reminder),
                 busy = state.busy,
+                onOpenList = { id ->
+                    viewModel.close()
+                    onOpenList(id)
+                },
                 onDone = { viewModel.open(ReminderDialog.Done(reminder)) },
                 onEdit = { viewModel.open(ReminderDialog.Edit(reminder, reminder.kind)) },
                 onUndo = { viewModel.undo(reminder) },
@@ -202,6 +218,10 @@ fun RemindersScreen(initialFilter: ReminderKind?, onBack: () -> Unit) {
                 emptyMembers = "Todavía nadie más ve esta categoría.",
                 header = {
                     KindChips(selected = dialog.kind, onSelect = { viewModel.open(ReminderDialog.Share(it)) })
+                },
+                groups = GroupSharing(state.groups, space.groups, { group, role -> viewModel.shareWithGroup(dialog.kind, group, role) }) {
+                    viewModel.close()
+                    onOpenGroups()
                 },
             ) {
                 val shared = state.sharedWithMe(dialog.kind)
@@ -438,11 +458,18 @@ private fun ReminderTicket(reminder: Reminder, state: RemindersUiState, onOpen: 
                 Text(reminder.title, fontWeight = FontWeight.Bold, color = Palette.Ink)
                 val due = if (reminder.finished) "Hecho" else Dates.longDay(reminder.dueDate).replaceFirstChar { it.uppercase() }
                 Text(
-                    listOfNotNull(due, reminder.nextKm?.let { "o a los ${formatKm(it)}" }, state.ownerLabel(reminder))
-                        .joinToString(" · "),
+                    listOfNotNull(
+                        due,
+                        reminder.time?.takeUnless { reminder.finished }?.let(Dates::time),
+                        reminder.nextKm?.let { "o a los ${formatKm(it)}" },
+                        state.ownerLabel(reminder),
+                    ).joinToString(" · "),
                     color = if (overdue) Palette.Danger else Palette.InkSoft,
                     fontSize = 13.sp,
                 )
+                state.linkedList(reminder)?.let { list ->
+                    Text("Lista «${list.title}» · ${listProgressLabel(list).lowercase()}", color = Palette.Violet, fontSize = 12.sp)
+                }
                 reminder.lastDone?.let { log ->
                     Text(
                         "Último: ${Dates.shortDay(log.shownDate(reminder.countFrom)).lowercase()}" +

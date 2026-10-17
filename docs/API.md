@@ -139,9 +139,34 @@ Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento conf
 | DELETE | `/lists/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse él mismo) |
 | POST | `/lists/{id}/invites` | — | `ShareInvite` (reutiliza uno vigente si existe) |
 | POST | `/invites/join` | `{ code }` | `Checklist` (solo listas; lo usaban las versiones ≤ 0.3 de la app) |
-| POST | `/join` | `{ code }` | `JoinResult { type: 'list' \| 'space', listId?, spaceId?, kind? }`: sirve para códigos de listas y de secciones |
+| POST | `/join` | `{ code }` | `JoinResult { type: 'list' \| 'space' \| 'tracker' \| 'group', listId?, spaceId?, trackerId?, groupId?, kind? }`: sirve para todos los códigos |
 
-`ShareInvite` trae `listId` **o** `spaceId` (uno de los dos).
+`ShareInvite` trae uno solo de `listId`, `spaceId`, `trackerId` o `groupId`.
+
+`Checklist`, `ReminderSpace` y `Counter` traen `groups: GroupShare[]` (`{ groupId, groupName, role }`) y `role`
+(`owner` \| `editor` \| `viewer`): mi permiso, el mayor entre la invitación directa y los grupos donde estoy.
+
+## Grupos
+
+Un grupo (Familia, Roomies…) junta personas; lo que se comparte con el grupo lo ven todos sus integrantes,
+también quienes entren después. Solo quien lo creó agrega o quita gente; un integrante puede salirse.
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/groups` | — | `Group[]` (primero los que creé) |
+| POST | `/groups` | `{ name }` | `Group` (201) |
+| PATCH | `/groups/{id}` | `{ name }` | `Group` (solo quien lo creó) |
+| DELETE | `/groups/{id}` | — | 204 (lo compartido sigue siendo de cada dueño) |
+| POST | `/groups/{id}/members` | `{ email }` | `GroupMember` (si ya tiene cuenta entra de inmediato; si no, al registrarse) |
+| DELETE | `/groups/{id}/members/{email}` | — | 204 (quien lo creó quita a cualquiera; un integrante puede salirse) |
+| POST | `/groups/{id}/invites` | — | `ShareInvite` con `groupId` (se usa con `POST /join`) |
+| PUT | `/{lists\|spaces\|trackers}/{id}/groups/{groupId}` | `{ role }` | 204: comparte con el grupo (o cambia el permiso). Solo el dueño y estando en el grupo |
+| DELETE | `/{lists\|spaces\|trackers}/{id}/groups/{groupId}` | — | 204: deja de compartir |
+
+- `Group`: `id, name, ownerId, ownerName, role ('owner'|'member'), members: GroupMember[], shared: GroupItem[], createdAt`.
+- `GroupMember`: `email, name, userId, status ('pending'|'accepted'), invitedAt`.
+- `GroupItem`: `type ('list'|'space'|'tracker'), id, title, kind, ownerId, ownerName, role` (`kind`: tipo de lista, categoría o ícono del contador).
+- Las notificaciones push de una lista, sección o contador también llegan a los integrantes de sus grupos.
 
 ## Recordatorios (Pagos, Mi hogar, Mi carro)
 
@@ -156,14 +181,16 @@ Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte comple
 | DELETE | `/spaces/{id}/members/{email}` | — | 204 (el dueño quita a cualquiera; un miembro puede salirse) |
 | POST | `/spaces/{id}/invites` | — | `ShareInvite` con `spaceId` (solo el dueño) |
 | GET | `/reminders?kind=payments` | — | `Reminder[]` de todas mis secciones de ese tipo, por `nextDue` |
-| POST | `/reminders` | `{ kind, spaceId?, title, amount?, every?, unit?, nextDue, notifyDaysBefore, countFrom?, everyKm?, note? }` | `Reminder` (201) |
-| PATCH | `/reminders/{id}` | mismos campos; `null` borra `amount`, `note` o la repetición | `Reminder` |
+| POST | `/reminders` | `{ kind, spaceId?, title, amount?, every?, unit?, nextDue, notifyDaysBefore, countFrom?, everyKm?, dueTime?, alertMinutes?, listId?, note? }` | `Reminder` (201) |
+| PATCH | `/reminders/{id}` | mismos campos; `null` borra `amount`, `note`, la hora, la lista o la repetición | `Reminder` |
 | DELETE | `/reminders/{id}` | — | 204 |
 | POST | `/reminders/{id}/done` | `{ amount?, note?, odometer? }` | `Reminder` ya en el siguiente vencimiento (o `finished` si es de una sola vez) |
 | POST | `/reminders/{id}/undo` | — | `Reminder` (vuelve al vencimiento de la última marca; 409 si no hay) |
 | GET | `/reminders/{id}/history` | — | `ReminderLog[]`, el más reciente primero |
 
-- `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, countFrom ('due'|'done'), everyKm, note, finished, lastDone, createdAt, updatedAt`.
+- `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, countFrom ('due'|'done'), everyKm, dueTime, alertMinutes, listId, note, finished, lastDone, createdAt, updatedAt`.
+- `dueTime` (`"20:00:00"`, hora local) es opcional; con hora, `alertMinutes` dice cuánto antes avisar (0 = a la hora, 60, 1440 = el día anterior) y `notifyDaysBefore` no se usa. Sin hora, `alertMinutes` es `null`.
+- `listId`: lista adjunta (ej. "Compras del mes" con la lista del súper). Solo se puede adjuntar una lista que yo vea (si no, 404); si la lista se borra queda `null`. Los contadores también tienen `listId` (`POST`/`PATCH /trackers`).
 - `ReminderLog`: `id, dueDate, amount, note, odometer, doneBy, doneByName, createdAt`. `everyKm`/`odometer` son para Mi carro.
 - `countFrom`: `due` = el siguiente se cuenta desde la fecha que vencía; `done` = desde el día que se marcó (zona horaria de Ecuador). Por defecto `due` en pagos y `done` en `home`/`car`.
   `every` y `unit` van juntos o ambos `null` (una sola vez).
@@ -171,7 +198,8 @@ Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte comple
 - Permisos como en las listas: dueño y editores crean, editan y marcan; viewer solo ve; sin acceso, 404.
 - Al crear o marcar, el backend avisa por push a los demás de la sección
   (`data: { type: 'reminder_added' | 'reminder_done', kind, reminderId }`).
-- Los avisos de vencimiento **no** salen del backend: los calcula cada teléfono (`ReminderWorker`).
+- Los avisos de vencimiento **no** salen del backend: los calcula cada teléfono (`ReminderWorker`). Los que tienen hora
+  se programan con `AlarmManager` (exacta si el usuario permite "Alarmas y recordatorios"; si no, en una ventana de 10 min).
 
 ## Reglas de negocio esperadas en el backend
 

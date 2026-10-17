@@ -6,7 +6,11 @@ import androidx.navigation.toRoute
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistItem
 import com.arianna.app.domain.model.ChecklistKind
+import com.arianna.app.domain.model.CounterRole
+import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.MemberRole
+import com.arianna.app.domain.repository.GroupsRepository
+import com.arianna.app.domain.repository.ShareTarget
 import com.arianna.app.domain.model.Product
 import com.arianna.app.domain.model.ShareInvite
 import com.arianna.app.domain.repository.DataException
@@ -20,6 +24,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.collectLatest
@@ -38,6 +43,8 @@ data class ListDetailUiState(
     val uploading: Boolean = false,
     /** El usuario puede editar (dueño o editor); los "solo ver" no ven acciones. */
     val canEdit: Boolean = true,
+    /** Mis grupos (para compartir con uno). */
+    val groups: List<Group> = emptyList(),
 ) {
     val loaded: Boolean get() = load == Load.READY
     val pending: List<ChecklistItem> = list?.items?.filterNot { it.done }.orEmpty()
@@ -49,6 +56,7 @@ class ListDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val lists: ListsRepository,
     private val sharing: SharingRepository,
+    private val groups: GroupsRepository,
     /** true mientras se usan repositorios falsos (sin backend). */
     val demoMode: Boolean,
     private val currentUserId: String?,
@@ -61,15 +69,21 @@ class ListDetailViewModel(
     private val uploading = MutableStateFlow(false)
 
     val state: StateFlow<ListDetailUiState> = loadingState(ListDetailUiState(), { copy(load = it) }) {
-        combine(lists.observeList(listId), extra, suggestions, uploading) { list, (invite, busy), found, isUploading ->
+        combine(
+            lists.observeList(listId),
+            extra,
+            suggestions,
+            uploading,
+            groups.observeGroups().catch { emit(emptyList()) },
+        ) { list, (invite, busy), found, isUploading, myGroups ->
             ListDetailUiState(
+                groups = myGroups,
                 list = list,
                 invite = invite,
                 busy = busy,
                 suggestions = found,
                 uploading = isUploading,
-                canEdit = list == null || list.ownerId == currentUserId ||
-                    list.sharedWith.any { it.userId == currentUserId && it.role == MemberRole.EDITOR },
+                canEdit = list == null || list.ownerId == currentUserId || list.role != CounterRole.VIEWER,
             )
         }
     }
@@ -155,6 +169,12 @@ class ListDetailViewModel(
     }
 
     fun removeMember(email: String) = launchSafely { sharing.removeMember(listId, email) }
+
+    /** Compartir con un grupo (o dejar de hacerlo con role null). */
+    fun shareWithGroup(group: Group, role: MemberRole?) = launchSafely {
+        groups.share(ShareTarget.ListTarget(listId), group, role)
+        notify(if (role == null) "Ya no se comparte con «${group.name}»" else "Compartido con «${group.name}»")
+    }
 
     fun createInvite() = withBusy {
         extra.value = sharing.createInvite(listId) to true

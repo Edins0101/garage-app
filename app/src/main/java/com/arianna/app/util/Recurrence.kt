@@ -71,6 +71,18 @@ object Recurrence {
     }
 
     /** "El mismo día", "1 día antes", "3 días antes". */
+    /** Anticipación de un aviso con hora. */
+    fun alertLabel(minutes: Int): String = when (minutes) {
+        0 -> "A la hora"
+        1440 -> "El día anterior"
+        else -> if (minutes % 60 == 0) {
+            val hours = minutes / 60
+            if (hours == 1) "1 hora antes" else "$hours horas antes"
+        } else {
+            "$minutes min antes"
+        }
+    }
+
     fun noticeLabel(days: Int): String = when (days) {
         0 -> "El mismo día"
         1 -> "1 día antes"

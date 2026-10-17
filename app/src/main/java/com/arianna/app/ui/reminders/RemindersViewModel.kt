@@ -6,7 +6,12 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.House
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.arianna.app.domain.model.Checklist
+import com.arianna.app.domain.model.Group
+import com.arianna.app.domain.repository.GroupsRepository
+import com.arianna.app.domain.repository.ShareTarget
 import com.arianna.app.domain.model.CountFrom
+import com.arianna.app.domain.model.CounterRole
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.MemberStatus
 import com.arianna.app.domain.model.Reminder
@@ -17,12 +22,14 @@ import com.arianna.app.domain.model.RepeatUnit
 import com.arianna.app.domain.model.ShareInvite
 import com.arianna.app.domain.repository.ReminderDraft
 import com.arianna.app.domain.repository.RemindersRepository
+import com.arianna.app.domain.repository.ListsRepository
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Recurrence
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
 import java.time.YearMonth
@@ -137,6 +144,10 @@ data class RemindersUiState(
     /** Todos los recordatorios (sin filtrar). */
     val all: List<Reminder> = emptyList(),
     val spaces: List<ReminderSpace> = emptyList(),
+    /** Listas que puedo ver (para adjuntarlas y mostrar su avance). */
+    val lists: List<Checklist> = emptyList(),
+    /** Mis grupos (para compartir una categoría). */
+    val groups: List<Group> = emptyList(),
     val myId: String = "",
     val dialog: ReminderDialog? = null,
     val history: List<ReminderLog>? = null,
@@ -164,11 +175,12 @@ data class RemindersUiState(
     fun ownSpace(kind: ReminderKind): ReminderSpace? = spaces.find { it.ownerId == myId && it.kind == kind }
     fun sharedWithMe(kind: ReminderKind): List<ReminderSpace> = spaces.filter { it.ownerId != myId && it.kind == kind }
 
-    /** Secciones donde puedo crear: la mía y las compartidas conmigo como editor. */
+    /** Secciones donde puedo crear: la mía y las compartidas conmigo (directo o por un grupo) como editor. */
     fun writableSpaces(kind: ReminderKind): List<ReminderSpace> = spaces.filter { space ->
-        space.kind == kind &&
-            (space.ownerId == myId || space.members.any { it.userId == myId && it.role == MemberRole.EDITOR })
+        space.kind == kind && (space.ownerId == myId || space.role != CounterRole.VIEWER)
     }
+
+    fun linkedList(reminder: Reminder): Checklist? = lists.find { it.id == reminder.listId }
 
     fun canEdit(reminder: Reminder): Boolean = writableSpaces(reminder.kind).any { it.id == reminder.spaceId }
 
@@ -192,6 +204,8 @@ data class RemindersUiState(
 class RemindersViewModel(
     filter: ReminderKind?,
     private val repository: RemindersRepository,
+    lists: ListsRepository,
+    private val groups: GroupsRepository,
     myId: String,
     private val myEmail: String,
     val demoMode: Boolean,
@@ -199,8 +213,14 @@ class RemindersViewModel(
     private val ui = MutableStateFlow(RemindersUiState(filter = filter, myId = myId))
 
     val state: StateFlow<RemindersUiState> = loadingState(ui.value, { copy(load = it) }) {
-        combine(ui, repository.observeReminders(), repository.observeSpaces()) { current, reminders, spaces ->
-            current.copy(all = reminders, spaces = spaces, today = LocalDate.now())
+        combine(
+            ui,
+            repository.observeReminders(),
+            repository.observeSpaces(),
+            lists.observeLists().catch { emit(emptyList()) },
+            groups.observeGroups().catch { emit(emptyList()) },
+        ) { current, reminders, spaces, allLists, myGroups ->
+            current.copy(all = reminders, spaces = spaces, lists = allLists, groups = myGroups, today = LocalDate.now())
         }
     }
 
@@ -236,7 +256,9 @@ class RemindersViewModel(
     fun save(existing: Reminder?, kind: ReminderKind, draft: ReminderDraft, spaceId: String?) = withBusy {
         if (existing == null) {
             val created = repository.create(kind, draft, spaceId)
-            notify("Listo: te aviso ${Recurrence.noticeLabel(created.notifyDaysBefore).lowercase()} de «${created.title}»")
+            val notice = created.time?.let { "${Recurrence.alertLabel(created.alertMinutes ?: 0).lowercase()} (${Dates.time(it)})" }
+                ?: Recurrence.noticeLabel(created.notifyDaysBefore).lowercase()
+            notify("Listo: te aviso $notice de «${created.title}»")
         } else {
             repository.update(existing, draft)
             notify("Cambios guardados")
@@ -301,6 +323,16 @@ class RemindersViewModel(
 
     fun removeMember(kind: ReminderKind, email: String) = launchSafely {
         state.value.ownSpace(kind)?.let { repository.removeSpaceMember(it, email) }
+    }
+
+    /** Compartir una categoría propia con un grupo (o dejar de hacerlo con role null). */
+    fun shareWithGroup(kind: ReminderKind, group: Group, role: MemberRole?) = launchSafely {
+        val space = state.value.ownSpace(kind) ?: return@launchSafely
+        groups.share(ShareTarget.SpaceTarget(space.id), group, role)
+        notify(
+            if (role == null) "${KindCopy.of(kind).title} ya no se comparte con «${group.name}»"
+            else "${KindCopy.of(kind).title} compartido con «${group.name}»",
+        )
     }
 
     /** Dejar de ver la sección que otra persona compartió conmigo. */

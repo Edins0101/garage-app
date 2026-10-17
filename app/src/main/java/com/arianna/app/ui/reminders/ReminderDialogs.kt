@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material3.AlertDialog
@@ -34,6 +35,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -43,12 +47,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arianna.app.data.reminders.ReminderAlarmScheduler
+import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.CountFrom
+import com.arianna.app.ui.common.LinkedListCard
+import com.arianna.app.ui.common.ListPicker
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.model.ReminderLog
@@ -66,6 +75,7 @@ import com.arianna.app.util.Money
 import com.arianna.app.util.Recurrence
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneOffset
 
 /** Opciones de repetición que se ofrecen (cubren casi todos los pagos de una casa). */
@@ -80,6 +90,9 @@ private val repeatOptions: List<Pair<Int?, RepeatUnit?>> = listOf(
 )
 
 private val noticeOptions = listOf(0, 1, 3, 7)
+
+/** Anticipación cuando el recordatorio tiene hora: a la hora, 15 min, 1 hora o el día anterior. */
+private val alertOptions = listOf(0, 15, 60, 1440)
 
 @Composable
 private fun chipColors() = FilterChipDefaults.filterChipColors(
@@ -131,6 +144,79 @@ private fun DateRow(label: String, date: LocalDate, onChange: (LocalDate) -> Uni
     }
 }
 
+/** Fila con la hora: "AGREGAR" abre el reloj; con hora, "CAMBIAR" y "QUITAR". */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeRow(time: LocalTime?, onChange: (LocalTime?) -> Unit) {
+    var picking by rememberSaveable { mutableStateOf(false) }
+    if (picking) {
+        val start = time ?: LocalTime.of(9, 0)
+        val picker = rememberTimePickerState(initialHour = start.hour, initialMinute = start.minute, is24Hour = false)
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            containerColor = Palette.Sheet,
+            confirmButton = {
+                TextButton(onClick = {
+                    onChange(LocalTime.of(picker.hour, picker.minute))
+                    picking = false
+                }) { Text("Aceptar", color = Palette.Violet) }
+            },
+            dismissButton = {
+                TextButton(onClick = { picking = false }) { Text("Cancelar", color = Palette.InkSoft) }
+            },
+            text = {
+                TimePicker(
+                    state = picker,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = Palette.LavenderSoft,
+                        selectorColor = Palette.Violet,
+                        clockDialSelectedContentColor = Palette.OnDark,
+                        clockDialUnselectedContentColor = Palette.Ink,
+                        timeSelectorSelectedContainerColor = Palette.Lavender,
+                        timeSelectorSelectedContentColor = Palette.Ink,
+                        timeSelectorUnselectedContainerColor = Palette.LavenderSoft,
+                        timeSelectorUnselectedContentColor = Palette.InkSoft,
+                        periodSelectorBorderColor = Palette.Divider,
+                        periodSelectorSelectedContainerColor = Palette.Lavender,
+                        periodSelectorSelectedContentColor = Palette.Ink,
+                        periodSelectorUnselectedContainerColor = Palette.Sheet,
+                        periodSelectorUnselectedContentColor = Palette.InkSoft,
+                    ),
+                )
+            },
+        )
+    }
+    Column {
+        Text("Hora (opcional)", fontSize = 12.sp, color = Palette.InkSoft)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { picking = true }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Schedule, null, tint = Palette.Violet, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                time?.let(Dates::time) ?: "Sin hora: te aviso en la mañana",
+                color = if (time == null) Palette.InkSoft else Palette.Ink,
+                modifier = Modifier.weight(1f),
+            )
+            if (time != null) {
+                Text(
+                    "QUITAR",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Palette.Danger,
+                    modifier = Modifier
+                        .clickable { onChange(null) }
+                        .padding(horizontal = 8.dp),
+                )
+            }
+            Text(if (time == null) "AGREGAR" else "CAMBIAR", style = MaterialTheme.typography.labelMedium, color = Palette.Violet)
+        }
+    }
+}
+
 /** Crear o editar un recordatorio. Al crear se elige la categoría (y, si hay varias, de quién). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -139,6 +225,8 @@ fun ReminderEditDialog(
     initialKind: ReminderKind,
     spacesFor: (ReminderKind) -> List<ReminderSpace>,
     myId: String,
+    /** Listas que se pueden adjuntar. */
+    lists: List<Checklist>,
     busy: Boolean,
     onSave: (ReminderKind, ReminderDraft, spaceId: String?) -> Unit,
     onDismiss: () -> Unit,
@@ -154,6 +242,12 @@ fun ReminderEditDialog(
     var note by rememberSaveable { mutableStateOf(reminder?.note.orEmpty()) }
     var countFrom by rememberSaveable { mutableStateOf(reminder?.countFrom ?: CountFrom.defaultFor(kind)) }
     var everyKm by rememberSaveable { mutableStateOf(reminder?.everyKm?.toString().orEmpty()) }
+    var timeText by rememberSaveable { mutableStateOf(reminder?.time?.toString()) }
+    var alert by rememberSaveable { mutableStateOf(reminder?.alertMinutes ?: 0) }
+    var listId by rememberSaveable { mutableStateOf(reminder?.listId) }
+    val time = timeText?.let(LocalTime::parse)
+    val context = LocalContext.current
+    val exactAllowed = ReminderAlarmScheduler.canScheduleExact(context)
     val spaces = spacesFor(kind)
     var spaceId by rememberSaveable(kind) { mutableStateOf(spaces.find { it.ownerId == myId }?.id) }
     val amountValue = Money.parse(amount)
@@ -211,6 +305,7 @@ fun ReminderEditDialog(
                 DateRow(if (reminder == null) "Próxima fecha" else "Vence", LocalDate.parse(dueText)) {
                     dueText = it.toString()
                 }
+                TimeRow(time) { timeText = it?.toString() }
 
                 Text("Se repite", fontSize = 12.sp, color = Palette.InkSoft)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -265,15 +360,47 @@ fun ReminderEditDialog(
 
                 Text("Avisarme", fontSize = 12.sp, color = Palette.InkSoft)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    noticeOptions.forEach { days ->
-                        FilterChip(
-                            selected = notice == days,
-                            onClick = { notice = days },
-                            label = { ChipText(Recurrence.noticeLabel(days)) },
-                            colors = chipColors(),
+                    if (time == null) {
+                        noticeOptions.forEach { days ->
+                            FilterChip(
+                                selected = notice == days,
+                                onClick = { notice = days },
+                                label = { ChipText(Recurrence.noticeLabel(days)) },
+                                colors = chipColors(),
+                            )
+                        }
+                    } else {
+                        alertOptions.forEach { minutes ->
+                            FilterChip(
+                                selected = alert == minutes,
+                                onClick = { alert = minutes },
+                                label = { ChipText(Recurrence.alertLabel(minutes)) },
+                                colors = chipColors(),
+                            )
+                        }
+                    }
+                }
+                if (time != null && !exactAllowed) {
+                    // Android 12+ puede tener apagadas las alarmas exactas: el aviso llegaría unos minutos tarde.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Para avisarte a la hora exacta, permite las alarmas de Arianna.",
+                            fontSize = 13.sp,
+                            color = Palette.InkSoft,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "PERMITIR",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Palette.Violet,
+                            modifier = Modifier
+                                .clickable { runCatching { context.startActivity(ReminderAlarmScheduler.exactAlarmSettings(context)) } }
+                                .padding(8.dp),
                         )
                     }
                 }
+
+                ListPicker(lists, listId, { listId = it }, hint = "Ej. «Compras del mes» con la lista del súper: al avisarte te digo cuánto falta.")
 
                 if (reminder == null && spaces.size > 1) {
                     Text("Guardar en", fontSize = 12.sp, color = Palette.InkSoft)
@@ -316,6 +443,9 @@ fun ReminderEditDialog(
                         note = note,
                         countFrom = countFrom,
                         everyKm = kmValue.takeIf { kind == ReminderKind.CAR },
+                        dueTime = time,
+                        alertMinutes = alert.takeIf { time != null },
+                        listId = listId,
                     )
                     onSave(kind, draft, spaceId)
                 },
@@ -407,7 +537,10 @@ fun ReminderDetailSheet(
     owner: String?,
     canEdit: Boolean,
     history: List<ReminderLog>?,
+    /** Lista adjunta (null si no tiene o no está compartida conmigo). */
+    linkedList: Checklist?,
     busy: Boolean,
+    onOpenList: (String) -> Unit,
     onDone: () -> Unit,
     onEdit: () -> Unit,
     onUndo: () -> Unit,
@@ -435,7 +568,8 @@ fun ReminderDetailSheet(
                     reminder.amount?.let { "≈ ${Money.format(it)}" },
                     Recurrence.label(reminder.every, reminder.unit) +
                         (reminder.everyKm?.let { " o ${formatKm(it)}" } ?: ""),
-                    "Aviso: ${Recurrence.noticeLabel(reminder.notifyDaysBefore).lowercase()}",
+                    reminder.time?.let { "Aviso: ${Recurrence.alertLabel(reminder.alertMinutes ?: 0).lowercase()}" }
+                        ?: "Aviso: ${Recurrence.noticeLabel(reminder.notifyDaysBefore).lowercase()}",
                     owner,
                 )
                 Text(facts.joinToString(" · "), color = Palette.InkSoft, fontSize = 14.sp)
@@ -446,11 +580,13 @@ fun ReminderDetailSheet(
                     reminder.finished -> "Hecho"
                     Recurrence.daysUntil(reminder) > 6 -> "Vence el ${Dates.longDay(reminder.dueDate)}"
                     else -> "${Recurrence.dueLabel(reminder)} · ${Dates.longDay(reminder.dueDate)}"
-                } + (reminder.nextKm?.let { " · o a los ${formatKm(it)}" } ?: ""),
+                } + (reminder.time?.let { " · ${Dates.time(it)}" } ?: "") +
+                    (reminder.nextKm?.let { " · o a los ${formatKm(it)}" } ?: ""),
                 color = if (overdue) Palette.Danger else Palette.Violet,
                 fontWeight = FontWeight.SemiBold,
             )
             reminder.note?.let { Text(it, color = Palette.Ink) }
+            if (reminder.listId != null) LinkedListCard(linkedList, onOpenList)
 
             if (canEdit) {
                 if (!reminder.finished) {
