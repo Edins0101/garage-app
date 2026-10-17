@@ -120,4 +120,5 @@
 - Menú del inicio: se quitaron "Compartidas" y "Nueva lista" (6 mosaicos en 2 filas). "Unirme" abre un código general (lista, recordatorios, calendario o grupo).
 - Secciones dentro de las listas (`section`, migración `a7d3e5f9c216`): al agregar se elige la sección (o se crea una nueva) y queda puesta para los siguientes; "Por comprar" se agrupa por sección; mantener presionado → "Poner en una sección". 51 tests en el backend.
 - Pruebas: emulador aparte `Arianna_Pruebas` (emulator-5556) con el usuario demo "Prueba" (prueba@arianna.app). El emulador `Medium_Phone_API_37.0` es del usuario: no se toca.
+- APK release v0.8.0 (grupos, hora y rango en recordatorios, listas adjuntas, secciones en listas, Mis calendarios con días pagados, inicio simplificado). Probado en el emulador de pruebas contra producción con un usuario temporal (borrado): lista con sección, recordatorio con rango y lista adjunta, grupo con código y calendario.
 
