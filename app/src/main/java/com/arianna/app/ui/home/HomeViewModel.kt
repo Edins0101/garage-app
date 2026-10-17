@@ -30,6 +30,9 @@ import kotlinx.coroutines.flow.stateIn
 import com.arianna.app.domain.model.Payment
 import java.time.LocalDate
 
+/** Tarjetas por sección en el inicio; si hay más, aparece "Ver todas". */
+const val HOME_PREVIEW = 2
+
 /** La cuenta que se ve en la agenda, con sus días y pagos. */
 private data class Agenda(val all: List<Counter>, val counter: Counter?, val days: List<GarageDay>, val payments: List<Payment>)
 
@@ -68,7 +71,9 @@ data class HomeUiState(
 
     /** Lo que vence en los próximos 7 días o ya venció. */
     private val urgent: List<Reminder> = activeReminders.filter { it.dueDate <= today.plusDays(7) }
-    val upcomingReminders: List<Reminder> = activeReminders.take(3)
+    val upcomingReminders: List<Reminder> = activeReminders.take(HOME_PREVIEW)
+    /** Hay más de los que caben en el inicio: se muestra "Ver todos". */
+    val moreReminders: Int = activeReminders.size
 
     val shoppingLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.SHOPPING }
     val todoLists: List<Checklist> = lists.filter { it.kind == ChecklistKind.TODO }

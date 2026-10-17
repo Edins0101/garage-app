@@ -509,21 +509,11 @@ private fun GarageAgenda(
     }
 }
 
-/** Los próximos 3 recordatorios (de cualquier categoría); toca para ir a Recordatorios. */
+/** Los próximos recordatorios (de cualquier categoría); toca para ir a Recordatorios. */
 @Composable
 private fun ColumnScope.RemindersSection(state: HomeUiState, onOpen: () -> Unit) {
     val upcoming = state.upcomingReminders
-    SheetTitle("Próximos recordatorios") {
-        Text(
-            "VER TODOS",
-            style = MaterialTheme.typography.labelLarge,
-            color = Palette.Violet,
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onOpen)
-                .padding(4.dp),
-        )
-    }
+    SheetTitle("Próximos recordatorios")
     Spacer(Modifier.height(14.dp))
     if (upcoming.isEmpty()) {
         Text(
@@ -557,6 +547,25 @@ private fun ColumnScope.RemindersSection(state: HomeUiState, onOpen: () -> Unit)
             }
         }
     }
+    SeeAll(state.moreReminders, "VER LOS", onOpen)
+}
+
+/** "VER LOS 5…" solo si hay más de los que se muestran en el inicio. */
+@Composable
+private fun ColumnScope.SeeAll(total: Int, prefix: String, onClick: () -> Unit) {
+    if (total <= HOME_PREVIEW) {
+        Spacer(Modifier.height(8.dp))
+        return
+    }
+    Text(
+        "$prefix $total…",
+        style = MaterialTheme.typography.labelLarge,
+        color = Palette.Ink,
+        modifier = Modifier
+            .align(Alignment.End)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 4.dp),
+    )
 }
 
 @Composable
@@ -582,17 +591,9 @@ private fun ColumnScope.ListsSection(
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        lists.take(3).forEach { list -> ChecklistTicket(list, onClick = { onOpenList(list.id) }) }
+        lists.take(HOME_PREVIEW).forEach { list -> ChecklistTicket(list, onClick = { onOpenList(list.id) }) }
     }
-    Text(
-        if (lists.size > 3) "VER LAS ${lists.size}…" else "VER TODAS…",
-        style = MaterialTheme.typography.labelLarge,
-        color = Palette.Ink,
-        modifier = Modifier
-            .align(Alignment.End)
-            .clickable(onClick = onSeeAll)
-            .padding(vertical = 14.dp, horizontal = 4.dp),
-    )
+    SeeAll(lists.size, "VER LAS", onSeeAll)
 }
 
 /** Tarjeta "boleto" de una lista; también la usa la pantalla de Listas. */
