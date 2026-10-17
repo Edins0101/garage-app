@@ -117,3 +117,7 @@
 - Recordatorios: "Un día" o "Rango de fechas" (desde/hasta; ej. regar las plantas cada día del 24 al 30), `endsOn` (migración `f2a6c9e1b384`), "Se repite" como lista desplegable con "Cada día" y "Cada 2 semanas". Calendario para elegir fechas rehecho: claro, en español y empezando el lunes (también en Registrar pago). 50 tests en el backend y 7 en la app.
 - Nuevo nombre: "Mis calendarios" (mosaico "Calendario", encima "Días y pagos", botón "Nuevo calendario"; cada uno se presenta como "Calendario"). Reemplaza a "Cuentas por día".
 - Inicio: cada sección (recordatorios, compras, tareas) muestra máximo 2 tarjetas; "Ver los/las N…" aparece solo si hay más.
+- Menú del inicio: se quitaron "Compartidas" y "Nueva lista" (6 mosaicos en 2 filas). "Unirme" abre un código general (lista, recordatorios, calendario o grupo).
+- Secciones dentro de las listas (`section`, migración `a7d3e5f9c216`): al agregar se elige la sección (o se crea una nueva) y queda puesta para los siguientes; "Por comprar" se agrupa por sección; mantener presionado → "Poner en una sección". 51 tests en el backend.
+- Pruebas: emulador aparte `Arianna_Pruebas` (emulator-5556) con el usuario demo "Prueba" (prueba@arianna.app). El emulador `Medium_Phone_API_37.0` es del usuario: no se toca.
+

@@ -1,5 +1,7 @@
 package com.arianna.app.ui.home
 
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.arianna.app.ui.common.TextInputDialog
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -118,7 +120,25 @@ fun HomeScreen(
     onOpenLists: (ListsRoute) -> Unit,
     onOpenList: (String) -> Unit,
     onOpenGroups: () -> Unit,
+    /** Código de invitación de cualquier tipo. */
+    onJoinCode: (String) -> Unit,
 ) {
+    var joining by rememberSaveable { mutableStateOf(false) }
+    if (joining) {
+        TextInputDialog(
+            title = "Unirme",
+            description = "Escribe el código de 6 caracteres que te compartieron: de una lista, recordatorios, " +
+                "un calendario o un grupo.",
+            label = "Código",
+            confirmText = "Unirme",
+            capitalization = KeyboardCapitalization.Characters,
+            onConfirm = {
+                joining = false
+                onJoinCode(it.trim().uppercase())
+            },
+            onDismiss = { joining = false },
+        )
+    }
     val viewModel = appViewModel { HomeViewModel(it.auth, it.counters, it.lists, it.reminders, it.homePrefs) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -214,6 +234,7 @@ fun HomeScreen(
                         onOpenReminders = onOpenReminders,
                         onOpenLists = onOpenLists,
                         onOpenGroups = onOpenGroups,
+                        onJoin = { joining = true },
                     )
                     Spacer(Modifier.height(28.dp))
                 }
@@ -342,6 +363,7 @@ private fun MainMenu(
     onOpenReminders: (ReminderKind?) -> Unit,
     onOpenLists: (ListsRoute) -> Unit,
     onOpenGroups: () -> Unit,
+    onJoin: () -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
@@ -352,17 +374,14 @@ private fun MainMenu(
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
         }
     }
+    // "Unirme" sirve para cualquier código: lista, recordatorios, calendario o grupo.
     val extras = listOf(
         MenuEntry(Icons.Outlined.Diversity3, "Grupos", onOpenGroups),
-        MenuEntry(Icons.Outlined.Groups, "Compartidas") { onOpenLists(ListsRoute(filter = "shared")) },
-        MenuEntry(Icons.Outlined.VpnKey, "Unirme") { onOpenLists(ListsRoute(join = true)) },
+        MenuEntry(Icons.Outlined.VpnKey, "Unirme", onJoin),
     )
     // Hasta 6 mosaicos van en filas de 3; si son más, en filas de 4 (se achican los textos).
-    // "Nueva lista" solo entra si completa la última fila (si no, se crea desde Compras o Tareas).
-    val base = main.size + extras.size
-    val columns = if (base > 6) 4 else 3
-    val newList = MenuEntry(Icons.Outlined.AddCircleOutline, "Nueva lista") { onOpenLists(ListsRoute(create = true)) }
-    val entries = main + extras + listOfNotNull(newList.takeIf { (base + 1) % columns == 0 })
+    val entries = main + extras
+    val columns = if (entries.size > 6) 4 else 3
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         entries.chunked(columns).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

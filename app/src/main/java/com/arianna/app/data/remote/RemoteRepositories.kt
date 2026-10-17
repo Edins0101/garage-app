@@ -59,7 +59,7 @@ internal fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
 @Serializable private data class NoteBody(val note: String?)
 @Serializable private data class NewListBody(val title: String, val kind: ChecklistKind)
 @Serializable private data class TitleBody(val title: String)
-@Serializable private data class NewItemBody(val text: String, val quantity: String?)
+@Serializable private data class NewItemBody(val text: String, val quantity: String?, val section: String? = null)
 @Serializable private data class ItemPatchBody(val text: String?, val quantity: String?, val done: Boolean?)
 @Serializable private data class InviteBody(val email: String, val role: MemberRole)
 @Serializable private data class JoinBody(val code: String)
@@ -285,12 +285,19 @@ class RemoteListsRepository(private val api: ApiClient) : ListsRepository {
         cache.value = cache.value.filterNot { it.id == id }
     }
 
-    override suspend fun addItem(listId: String, text: String, quantity: String?): ChecklistItem {
+    override suspend fun addItem(listId: String, text: String, quantity: String?, section: String?): ChecklistItem {
         val item = api.request(
-            "POST", "/lists/${enc(listId)}/items", api.body(NewItemBody(text, quantity)), ChecklistItem.serializer(),
+            "POST", "/lists/${enc(listId)}/items", api.body(NewItemBody(text, quantity, section)), ChecklistItem.serializer(),
         )!!
         reload(listId)
         return item
+    }
+
+    override suspend fun setItemSection(listId: String, itemId: String, section: String?) {
+        // null explícito: quita la sección.
+        val body = buildJsonObject { put("section", section?.trim()?.takeIf { it.isNotEmpty() }) }.toString()
+        api.request("PATCH", "/lists/${enc(listId)}/items/${enc(itemId)}", body, ChecklistItem.serializer())
+        reload(listId)
     }
 
     override suspend fun updateItem(listId: String, itemId: String, text: String?, quantity: String?, done: Boolean?) {

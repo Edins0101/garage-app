@@ -17,14 +17,14 @@ import java.time.LocalDate
 
 /** Datos de ejemplo para la primera vez que se abre la app. */
 object FakeSeed {
-    val currentUser = User(id = "user-me", name = "Edinson", email = "yo@arianna.app")
+    val currentUser = User(id = "user-me", name = "Prueba", email = "prueba@arianna.app")
 
     fun create(): FakeDb {
         val now = Instant.now().toString()
         val today = LocalDate.now()
 
-        fun item(id: String, text: String, done: Boolean = false, quantity: String? = null) =
-            ChecklistItem(id, text, quantity, done, createdAt = now, updatedAt = now)
+        fun item(id: String, text: String, done: Boolean = false, quantity: String? = null, section: String? = null) =
+            ChecklistItem(id, text, quantity = quantity, section = section, done = done, createdAt = now, updatedAt = now)
 
         fun payment(id: String, title: String, amount: Double, due: LocalDate) = Reminder(
             id = id,
@@ -77,6 +77,9 @@ object FakeSeed {
                         item("i2", "Huevos", quantity = "1 cubeta"),
                         item("i3", "Pan", done = true),
                         item("i4", "Café"),
+                        item("i5", "Papel higiénico", quantity = "1 paquete", section = "Baño"),
+                        item("i6", "Jabón", section = "Baño"),
+                        item("i7", "Croquetas", quantity = "2 kg", section = "Perros"),
                     ),
                     sharedWith = listOf(
                         SharedMember(

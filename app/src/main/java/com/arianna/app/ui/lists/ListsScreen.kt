@@ -210,7 +210,7 @@ fun ListsScreen(
     if (joining) {
         TextInputDialog(
             title = "Unirme",
-            description = "Escribe el código de 6 caracteres que te compartieron (de una lista o de pagos).",
+            description = "Escribe el código de 6 caracteres que te compartieron: de una lista, recordatorios, un calendario o un grupo.",
             label = "Código",
             confirmText = "Unirme",
             capitalization = KeyboardCapitalization.Characters,

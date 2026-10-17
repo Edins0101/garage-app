@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.Link
@@ -145,6 +146,7 @@ fun ItemActionsSheet(
     onRemoveItemPhoto: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    onMoveSection: () -> Unit = {},
 ) {
     val hasOwnPhoto = item.image?.source == ImageSource.ITEM
     val hasProductPhoto = item.image?.source == ImageSource.PRODUCT
@@ -181,6 +183,9 @@ fun ItemActionsSheet(
                 HorizontalDivider(color = Palette.Divider, modifier = Modifier.padding(vertical = 8.dp))
             }
             if (canEdit) {
+                SectionLabel("Sección")
+                ActionRow(Icons.Outlined.Category, item.section?.let { "En $it · cambiar" } ?: "Poner en una sección", onClick = onMoveSection)
+                HorizontalDivider(color = Palette.Divider, modifier = Modifier.padding(vertical = 8.dp))
                 SectionLabel("Solo en este elemento (ej: otra marca)")
                 ActionRow(Icons.Outlined.AddAPhoto, "Foto propia desde la galería") { onGallery(PhotoTarget.ITEM) }
                 ActionRow(Icons.Outlined.PhotoCamera, "Foto propia con la cámara") { onCamera(PhotoTarget.ITEM) }

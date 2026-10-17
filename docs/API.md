@@ -134,6 +134,8 @@ Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento conf
 | DELETE | `/lists/{id}/items/{itemId}` | — | 204 |
 | POST | `/lists/{id}/items/clear-completed` | — | `Checklist` |
 
+- Los elementos tienen `section` (opcional, máx. 60): sección dentro de la lista (Baño, Patio, Perros…). `POST /lists/{id}/items` la acepta y `PATCH …/items/{itemId}` la cambia; `null` la quita.
+
 ## Compartir
 
 | Método | Ruta | Body | Respuesta |

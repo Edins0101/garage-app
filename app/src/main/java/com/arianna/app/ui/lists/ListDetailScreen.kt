@@ -1,5 +1,15 @@
 package com.arianna.app.ui.lists
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import com.arianna.app.ui.common.appFieldColors
 import com.arianna.app.ui.components.ItemRowSkeleton
 import com.arianna.app.ui.components.TicketSkeleton
 import com.arianna.app.ui.components.SkeletonBox
@@ -111,6 +121,10 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
     var deleting by remember { mutableStateOf<ChecklistItem?>(null) }
     // Menú del elemento (toque largo), visor de foto y enlace de imagen.
     var actionsFor by remember { mutableStateOf<ChecklistItem?>(null) }
+    /** Sección en la que se agregan los nuevos elementos (se mantiene para agregar varios seguidos). */
+    var addSection by rememberSaveable { mutableStateOf<String?>(null) }
+    var creatingSection by rememberSaveable { mutableStateOf(false) }
+    var movingSection by remember { mutableStateOf<ChecklistItem?>(null) }
     var viewing by remember { mutableStateOf<ChecklistItem?>(null) }
     var urlFor by remember { mutableStateOf<ChecklistItem?>(null) }
     // Elemento y destino de la foto que se está eligiendo (galería o cámara).
@@ -252,7 +266,7 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                             onQuantityChange = { newQuantity = it },
                             onAdd = {
                                 if (newText.isNotBlank()) {
-                                    viewModel.addItem(newText, newQuantity.takeIf { isShopping && it.isNotBlank() })
+                                    viewModel.addItem(newText, newQuantity.takeIf { isShopping && it.isNotBlank() }, addSection)
                                     newText = ""
                                     newQuantity = ""
                                     viewModel.onQueryChange("")
@@ -263,6 +277,12 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                             newText = product.name
                             viewModel.onQueryChange("")
                         }
+                        SectionChips(
+                            sections = (list.sections + listOfNotNull(addSection)).distinct(),
+                            selected = addSection,
+                            onSelect = { addSection = it },
+                            onNew = { creatingSection = true },
+                        )
                     }
                     if (state.uploading) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -293,13 +313,20 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                                 .padding(vertical = 16.dp),
                         )
                     }
-                    state.pending.forEach { item ->
-                        ItemRow(
-                            item,
-                            onToggle = { viewModel.toggle(item) },
-                            onLongClick = { actionsFor = item },
-                            onImageClick = { viewing = item },
-                        )
+                    // Agrupado por sección: primero lo que no tiene sección y luego cada sección.
+                    val groups = state.pending.groupBy { it.section }
+                    val order = listOf<String?>(null) + groups.keys.filterNotNull().sortedBy { it.lowercase() }
+                    order.forEach { section ->
+                        val items = groups[section] ?: return@forEach
+                        if (section != null) SectionHeader(section, items.size)
+                        items.forEach { item ->
+                            ItemRow(
+                                item,
+                                onToggle = { viewModel.toggle(item) },
+                                onLongClick = { actionsFor = item },
+                                onImageClick = { viewing = item },
+                            )
+                        }
                     }
 
                     if (state.done.isNotEmpty()) {
@@ -325,7 +352,7 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                     }
 
                     Text(
-                        "Toca para marcar · mantén presionado para fotos o eliminar",
+                        "Toca para marcar · mantén presionado para sección, fotos o eliminar",
                         color = Palette.InkSoft,
                         fontSize = 12.sp,
                         modifier = Modifier
@@ -397,6 +424,34 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                 deleting = item
             },
             onDismiss = { actionsFor = null },
+            onMoveSection = {
+                actionsFor = null
+                movingSection = item
+            },
+        )
+    }
+    if (creatingSection) {
+        TextInputDialog(
+            title = "Nueva sección",
+            description = "Ej. Baño, Patio, Perros, Limpieza. Lo que agregues después irá ahí.",
+            label = "Nombre de la sección",
+            confirmText = "Crear",
+            onConfirm = {
+                creatingSection = false
+                addSection = it.trim().takeIf { name -> name.isNotEmpty() }
+            },
+            onDismiss = { creatingSection = false },
+        )
+    }
+    movingSection?.let { item ->
+        MoveSectionDialog(
+            item = item,
+            sections = list?.sections.orEmpty(),
+            onMove = { section ->
+                movingSection = null
+                viewModel.moveToSection(item, section)
+            },
+            onDismiss = { movingSection = null },
         )
     }
     urlFor?.let { item ->
@@ -536,4 +591,114 @@ private fun newCameraUri(context: Context): Uri {
     val dir = File(context.cacheDir, "camera").apply { mkdirs() }
     val file = File(dir, "foto-${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+/** Elegir en qué sección se agregan los nuevos elementos (sobre el fondo oscuro). */
+@Composable
+private fun SectionChips(sections: List<String>, selected: String?, onSelect: (String?) -> Unit, onNew: () -> Unit) {
+    val colors = FilterChipDefaults.filterChipColors(
+        containerColor = Palette.Glass,
+        labelColor = Palette.OnDarkSoft,
+        selectedContainerColor = Palette.OnDark,
+        selectedLabelColor = Palette.Violet,
+        iconColor = Palette.OnDarkSoft,
+    )
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Sección:", color = Palette.OnDarkSoft, fontSize = 13.sp)
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text("Ninguna", style = MaterialTheme.typography.bodyMedium) },
+            colors = colors,
+            border = null,
+        )
+        sections.forEach { section ->
+            FilterChip(
+                selected = selected == section,
+                onClick = { onSelect(section) },
+                label = { Text(section, style = MaterialTheme.typography.bodyMedium) },
+                colors = colors,
+                border = null,
+            )
+        }
+        FilterChip(
+            selected = false,
+            onClick = onNew,
+            label = { Text("Nueva", style = MaterialTheme.typography.bodyMedium) },
+            leadingIcon = { Icon(Icons.Outlined.Add, null, modifier = Modifier.size(16.dp)) },
+            colors = colors,
+            border = null,
+        )
+    }
+}
+
+/** Encabezado de una sección dentro de "Por comprar". */
+@Composable
+private fun SectionHeader(name: String, count: Int) {
+    Row(Modifier.padding(top = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Outlined.Category, null, tint = Palette.Violet, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(name.uppercase(), style = MaterialTheme.typography.labelLarge, color = Palette.Violet)
+        Spacer(Modifier.width(6.dp))
+        Text("$count", color = Palette.InkSoft, fontSize = 13.sp)
+    }
+}
+
+/** Mover un elemento a otra sección (o a una nueva). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MoveSectionDialog(item: ChecklistItem, sections: List<String>, onMove: (String?) -> Unit, onDismiss: () -> Unit) {
+    var newName by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Sheet,
+        titleContentColor = Palette.Ink,
+        title = { Text("Sección de «${item.text}»") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Palette.Violet,
+                    selectedLabelColor = Palette.OnDark,
+                    labelColor = Palette.Ink,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = item.section == null,
+                        onClick = { onMove(null) },
+                        label = { Text("Sin sección", style = MaterialTheme.typography.bodyMedium) },
+                        colors = colors,
+                    )
+                    sections.forEach { section ->
+                        FilterChip(
+                            selected = item.section == section,
+                            onClick = { onMove(section) },
+                            label = { Text(section, style = MaterialTheme.typography.bodyMedium) },
+                            colors = colors,
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it.take(60) },
+                    label = { Text("O una nueva (ej. Baño)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    colors = appFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = newName.isNotBlank(), onClick = { onMove(newName.trim()) }) {
+                Text("Mover", color = Palette.Violet)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = Palette.InkSoft) }
+        },
+    )
 }

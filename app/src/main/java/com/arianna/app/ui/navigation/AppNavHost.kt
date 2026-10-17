@@ -75,6 +75,7 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenLists = { route -> navController.navigate(route) },
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
                 onOpenGroups = { navController.navigate(GroupsRoute) },
+                onJoinCode = { code -> navController.navigate(JoinRoute(code)) },
             )
         }
         composable<GroupsRoute> {

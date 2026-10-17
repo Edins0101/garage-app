@@ -140,7 +140,9 @@ interface ListsRepository {
     suspend fun renameList(id: String, title: String)
     suspend fun deleteList(id: String)
 
-    suspend fun addItem(listId: String, text: String, quantity: String? = null): ChecklistItem
+    suspend fun addItem(listId: String, text: String, quantity: String? = null, section: String? = null): ChecklistItem
+    /** Mueve el elemento a otra sección; null lo deja sin sección. */
+    suspend fun setItemSection(listId: String, itemId: String, section: String?)
     suspend fun updateItem(
         listId: String,
         itemId: String,

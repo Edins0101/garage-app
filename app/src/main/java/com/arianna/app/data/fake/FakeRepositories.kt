@@ -555,7 +555,15 @@ class FakeListsRepository(private val store: FakeStore, private val imagesDir: F
         ) to Unit
     }
 
-    override suspend fun addItem(listId: String, text: String, quantity: String?): ChecklistItem =
+    override suspend fun setItemSection(listId: String, itemId: String, section: String?) = store.update { db ->
+        val list = db.requireList(listId)
+        val clean = section?.trim()?.takeIf { it.isNotEmpty() }
+        db.replaceList(
+            list.copy(items = list.items.map { if (it.id == itemId) it.copy(section = clean, updatedAt = now()) else it }),
+        ) to Unit
+    }
+
+    override suspend fun addItem(listId: String, text: String, quantity: String?, section: String?): ChecklistItem =
         store.update { db ->
             val clean = text.trim()
             if (clean.isEmpty()) throw DataException("Escribe algo para agregar", DataException.Kind.INVALID)
@@ -565,6 +573,7 @@ class FakeListsRepository(private val store: FakeStore, private val imagesDir: F
                 id = Ids.create("item-"),
                 text = clean,
                 quantity = quantity?.trim()?.takeIf { it.isNotEmpty() },
+                section = section?.trim()?.takeIf { it.isNotEmpty() },
                 productId = product.id,
                 createdAt = now(),
                 updatedAt = now(),

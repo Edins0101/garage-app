@@ -150,6 +150,8 @@ data class ChecklistItem(
     val text: String,
     /** Solo en listas de compras: "2 kg", "1 caja"... */
     val quantity: String? = null,
+    /** Sección dentro de la lista (Baño, Patio, Perros…). null = sin sección. */
+    val section: String? = null,
     val done: Boolean = false,
     /** Quién lo marcó como hecho (útil en listas compartidas). */
     val doneBy: String? = null,
@@ -221,6 +223,8 @@ data class Checklist(
 ) {
     val doneCount: Int get() = items.count { it.done }
     val pendingCount: Int get() = items.size - doneCount
+    /** Secciones usadas en la lista, en orden alfabético. */
+    val sections: List<String> get() = items.mapNotNull { it.section }.distinct().sortedBy { it.lowercase() }
     val progress: Float get() = if (items.isEmpty()) 0f else doneCount.toFloat() / items.size
 }
 

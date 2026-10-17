@@ -145,8 +145,13 @@ class ListDetailViewModel(
         }
     }
 
-    fun addItem(text: String, quantity: String?) = launchSafely {
-        lists.addItem(listId, text, quantity)
+    fun addItem(text: String, quantity: String?, section: String?) = launchSafely {
+        lists.addItem(listId, text, quantity, section)
+    }
+
+    fun moveToSection(item: ChecklistItem, section: String?) = launchSafely {
+        lists.setItemSection(listId, item.id, section)
+        notify(section?.let { "«${item.text}» ahora está en $it" } ?: "«${item.text}» quedó sin sección")
     }
 
     fun toggle(item: ChecklistItem) = launchSafely {
