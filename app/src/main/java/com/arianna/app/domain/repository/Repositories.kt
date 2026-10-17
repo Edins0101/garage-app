@@ -196,6 +196,8 @@ data class ReminderDraft(
     val countFrom: CountFrom,
     /** Mi carro: cada tantos km (opcional). */
     val everyKm: Int? = null,
+    /** Rango: se repite hasta este día (incluido). null = sin fin. */
+    val endsOn: LocalDate? = null,
     /** Hora a la que vence; null = sin hora (aviso de la mañana). */
     val dueTime: LocalTime? = null,
     /** Con hora: minutos de anticipación del aviso. */

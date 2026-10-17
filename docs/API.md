@@ -193,6 +193,7 @@ Cada usuario tiene una **sección** por tipo (se crea sola) y la comparte comple
 | GET | `/reminders/{id}/history` | — | `ReminderLog[]`, el más reciente primero |
 
 - `Reminder`: `id, spaceId, kind, title, amount, every, unit ('day'|'week'|'month'|'year'), nextDue, notifyDaysBefore, countFrom ('due'|'done'), everyKm, dueTime, alertMinutes, listId, note, finished, lastDone, createdAt, updatedAt`.
+- `endsOn` (opcional, solo con repetición): rango de fechas. Se repite desde `nextDue` hasta `endsOn` (incluido); al marcar el último queda `finished`. 422 si `endsOn` < `nextDue`. `unit` admite `day` ("Cada día").
 - `dueTime` (`"20:00:00"`, hora local) es opcional; con hora, `alertMinutes` dice cuánto antes avisar (0 = a la hora, 60, 1440 = el día anterior) y `notifyDaysBefore` no se usa. Sin hora, `alertMinutes` es `null`.
 - `listId`: lista adjunta (ej. "Compras del mes" con la lista del súper). Solo se puede adjuntar una lista que yo vea (si no, 404); si la lista se borra queda `null`. Los contadores también tienen `listId` (`POST`/`PATCH /trackers`).
 - `ReminderLog`: `id, dueDate, amount, note, odometer, doneBy, doneByName, createdAt`. `everyKm`/`odometer` son para Mi carro.

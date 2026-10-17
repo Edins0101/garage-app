@@ -718,6 +718,9 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
 
     private fun validate(draft: ReminderDraft) {
         if (draft.title.isBlank()) throw DataException("Ponle un nombre", DataException.Kind.INVALID)
+        if (draft.endsOn != null && draft.endsOn.isBefore(draft.nextDue)) {
+            throw DataException("La fecha final debe ser igual o posterior a la inicial", DataException.Kind.INVALID)
+        }
         if ((draft.every == null) != (draft.unit == null)) {
             throw DataException("Indica cada cuánto se repite", DataException.Kind.INVALID)
         }
@@ -739,6 +742,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
                 everyKm = draft.everyKm,
+                endsOn = draft.endsOn?.takeIf { draft.every != null }?.toString(),
                 dueTime = draft.dueTime?.toString(),
                 alertMinutes = draft.alertMinutes.takeIf { draft.dueTime != null },
                 listId = draft.listId,
@@ -767,6 +771,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 notifyDaysBefore = draft.notifyDaysBefore,
                 countFrom = draft.countFrom,
                 everyKm = draft.everyKm,
+                endsOn = draft.endsOn?.takeIf { draft.every != null }?.toString(),
                 dueTime = draft.dueTime?.toString(),
                 alertMinutes = draft.alertMinutes.takeIf { draft.dueTime != null },
                 listId = draft.listId,
@@ -804,7 +809,9 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
                 createdAt = now(),
             )
             val today = LocalDate.now()
+            // Igual que el servidor: si el siguiente cae después del rango, era el último.
             val due = Recurrence.nextAfterDone(current, today, db.anchorDays[current.id])
+                ?.takeUnless { next -> current.endDate?.let { next.isAfter(it) } ?: false }
             val next = if (due != null) {
                 current.copy(nextDue = due.toString(), lastDone = log)
             } else {

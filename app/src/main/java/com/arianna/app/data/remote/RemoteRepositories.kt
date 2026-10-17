@@ -413,6 +413,7 @@ class RemoteRemindersRepository(private val api: ApiClient) : RemindersRepositor
         put("notifyDaysBefore", draft.notifyDaysBefore)
         put("countFrom", draft.countFrom.name.lowercase())
         put("everyKm", draft.everyKm)
+        put("endsOn", draft.endsOn?.takeIf { draft.every != null }?.toString())
         put("dueTime", draft.dueTime?.let { "%02d:%02d".format(it.hour, it.minute) })
         put("alertMinutes", draft.alertMinutes.takeIf { draft.dueTime != null })
         put("listId", draft.listId)

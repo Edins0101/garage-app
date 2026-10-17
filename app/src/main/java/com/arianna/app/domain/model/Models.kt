@@ -328,6 +328,8 @@ data class Reminder(
     val countFrom: CountFrom = CountFrom.DUE,
     /** Mi carro: también cada tantos km (solo informativo; los avisos son por fecha). */
     val everyKm: Int? = null,
+    /** Rango de fechas: se repite hasta este día (incluido) y luego queda hecho. */
+    val endsOn: String? = null,
     /** Hora a la que vence ("20:00" o "20:00:00"). Sin hora: aviso de la mañana. */
     val dueTime: String? = null,
     /** Con hora: cuántos minutos antes avisar (0 = a la hora, 60 = 1 hora antes, 1440 = el día anterior). */
@@ -344,6 +346,7 @@ data class Reminder(
     val dueDate: LocalDate get() = LocalDate.parse(nextDue)
     val repeats: Boolean get() = every != null && unit != null
     val time: LocalTime? get() = dueTime?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+    val endDate: LocalDate? get() = endsOn?.let(LocalDate::parse)
 
     /** A qué kilometraje toca, según el último registrado. */
     val nextKm: Int? get() = everyKm?.let { km -> lastDone?.odometer?.plus(km) }

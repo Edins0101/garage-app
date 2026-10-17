@@ -120,4 +120,11 @@ class RemindersTest {
         // Sin hora no hay alarma.
         assertTrue(ReminderRules.alarms(listOf(reminder(today.plusDays(1))), morning).isEmpty())
     }
+
+    @Test
+    fun rangeLabel() {
+        val daily = reminder(today).copy(every = 1, unit = RepeatUnit.DAY, endsOn = today.plusDays(7).toString())
+        assertEquals("Cada día hasta el 23 oct", Recurrence.label(daily))
+        assertEquals("Cada mes", Recurrence.label(reminder(today)))
+    }
 }

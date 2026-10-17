@@ -59,6 +59,7 @@ import com.arianna.app.ui.components.SheetTitle
 import com.arianna.app.ui.theme.Palette
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
+import com.arianna.app.ui.common.AppDatePickerDialog
 import com.arianna.app.ui.common.MoneyField
 import com.arianna.app.ui.common.asInput
 import java.time.Instant
@@ -289,23 +290,12 @@ fun PaymentDialog(
     val date = LocalDate.parse(dateText)
 
     if (pickingDate) {
-        val picker = rememberDatePickerState(
-            initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+        AppDatePickerDialog(
+            initial = date,
+            onPick = { dateText = it.toString() },
+            onDismiss = { pickingDate = false },
+            title = "Fecha del pago",
         )
-        DatePickerDialog(
-            onDismissRequest = { pickingDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    picker.selectedDateMillis?.let {
-                        dateText = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
-                    }
-                    pickingDate = false
-                }) { Text("Aceptar", color = Palette.Violet) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pickingDate = false }) { Text("Cancelar", color = Palette.InkSoft) }
-            },
-        ) { DatePicker(state = picker) }
     }
 
     AlertDialog(

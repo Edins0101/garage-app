@@ -33,6 +33,10 @@ object Recurrence {
         else advance(reminder.dueDate, every, unit, anchorDay)
     }
 
+    /** "Cada día hasta el 25 oct" o solo la repetición si no tiene rango. */
+    fun label(reminder: Reminder): String =
+        label(reminder.every, reminder.unit) + (reminder.endDate?.let { " hasta el ${Dates.shortDay(it).lowercase()}" } ?: "")
+
     /** "Cada mes", "Cada 2 semanas", "Una sola vez". */
     fun label(every: Int?, unit: RepeatUnit?): String {
         if (every == null || unit == null) return "Una sola vez"

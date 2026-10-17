@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.automirrored.outlined.Undo
@@ -27,6 +28,10 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,6 +47,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -64,6 +70,7 @@ import com.arianna.app.domain.model.ReminderLog
 import com.arianna.app.domain.model.ReminderSpace
 import com.arianna.app.domain.model.RepeatUnit
 import com.arianna.app.domain.repository.ReminderDraft
+import com.arianna.app.ui.common.AppDatePickerDialog
 import com.arianna.app.ui.common.MoneyField
 import com.arianna.app.ui.common.appFieldColors
 import com.arianna.app.ui.common.asInput
@@ -78,16 +85,61 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 
-/** Opciones de repetición que se ofrecen (cubren casi todos los pagos de una casa). */
+/** Opciones de repetición (de la más frecuente a la menos). */
 private val repeatOptions: List<Pair<Int?, RepeatUnit?>> = listOf(
+    null to null,
+    1 to RepeatUnit.DAY,
+    1 to RepeatUnit.WEEK,
+    2 to RepeatUnit.WEEK,
     1 to RepeatUnit.MONTH,
     2 to RepeatUnit.MONTH,
     3 to RepeatUnit.MONTH,
     6 to RepeatUnit.MONTH,
     1 to RepeatUnit.YEAR,
-    1 to RepeatUnit.WEEK,
-    null to null,
 )
+
+/** "Se repite" como lista desplegable. En un rango no se ofrece "Una sola vez". */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RepeatDropdown(every: Int?, unit: RepeatUnit?, inRange: Boolean, onChange: (Int?, RepeatUnit?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val options = repeatOptions.filterNot { inRange && it.first == null }.let { base ->
+        // Una repetición que no está entre las opciones (ej. cada 5 años) se muestra tal cual.
+        if ((every to unit) in base) base else listOf(every to unit) + base
+    }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
+        OutlinedTextField(
+            value = Recurrence.label(every, unit),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(if (inRange) "Dentro del rango, se repite" else "Se repite") },
+            leadingIcon = { Icon(Icons.Outlined.Repeat, null, tint = Palette.Violet) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            colors = appFieldColors(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = Palette.Sheet) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            Recurrence.label(option.first, option.second),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Palette.Ink,
+                            fontWeight = if (option == (every to unit)) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onChange(option.first, option.second)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
 
 private val noticeOptions = listOf(0, 1, 3, 7)
 
@@ -108,24 +160,10 @@ private fun ChipText(text: String) = Text(text, style = MaterialTheme.typography
 /** Fila con la fecha y "CAMBIAR" que abre el calendario. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateRow(label: String, date: LocalDate, onChange: (LocalDate) -> Unit) {
+private fun DateRow(label: String, date: LocalDate, onChange: (LocalDate) -> Unit, minDate: LocalDate? = null) {
     var picking by rememberSaveable { mutableStateOf(false) }
     if (picking) {
-        val picker = rememberDatePickerState(
-            initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    picker.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
-                    picking = false
-                }) { Text("Aceptar", color = Palette.Violet) }
-            },
-            dismissButton = {
-                TextButton(onClick = { picking = false }) { Text("Cancelar", color = Palette.InkSoft) }
-            },
-        ) { DatePicker(state = picker) }
+        AppDatePickerDialog(initial = date, onPick = onChange, onDismiss = { picking = false }, title = label, minDate = minDate)
     }
     Column {
         Text(label, fontSize = 12.sp, color = Palette.InkSoft)
@@ -236,6 +274,11 @@ fun ReminderEditDialog(
     var title by rememberSaveable { mutableStateOf(reminder?.title.orEmpty()) }
     var amount by rememberSaveable { mutableStateOf(reminder?.amount?.asInput().orEmpty()) }
     var dueText by rememberSaveable { mutableStateOf((reminder?.dueDate ?: LocalDate.now().plusDays(7)).toString()) }
+    // "Un día" o "Rango de fechas" (ej. la pastilla cada día del 18 al 25).
+    var inRange by rememberSaveable { mutableStateOf(reminder?.endsOn != null) }
+    var endText by rememberSaveable {
+        mutableStateOf(reminder?.endsOn ?: (reminder?.dueDate ?: LocalDate.now().plusDays(7)).plusDays(6).toString())
+    }
     var every by rememberSaveable { mutableStateOf(if (reminder == null) 1 else reminder.every) }
     var unit by rememberSaveable { mutableStateOf(if (reminder == null) RepeatUnit.MONTH else reminder.unit) }
     var notice by rememberSaveable { mutableStateOf(reminder?.notifyDaysBefore ?: 3) }
@@ -302,31 +345,45 @@ fun ReminderEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 MoneyField(amount, { amount = it }, "${copy.amountLabel} aproximado (opcional)", Modifier.fillMaxWidth())
-                DateRow(if (reminder == null) "Próxima fecha" else "Vence", LocalDate.parse(dueText)) {
-                    dueText = it.toString()
+                Text("Cuándo", fontSize = 12.sp, color = Palette.InkSoft)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(inRange.not(), { inRange = false }, { ChipText("Un día") }, colors = chipColors())
+                    FilterChip(
+                        selected = inRange,
+                        onClick = {
+                            inRange = true
+                            // En un rango lo normal es cada día, contando desde la fecha fija.
+                            if (every == null || unit == RepeatUnit.MONTH || unit == RepeatUnit.YEAR) {
+                                every = 1
+                                unit = RepeatUnit.DAY
+                                notice = 0
+                            }
+                            countFrom = CountFrom.DUE
+                            if (LocalDate.parse(endText) < LocalDate.parse(dueText)) endText = LocalDate.parse(dueText).plusDays(6).toString()
+                        },
+                        label = { ChipText("Rango de fechas") },
+                        colors = chipColors(),
+                    )
+                }
+                if (inRange) {
+                    DateRow("Desde", LocalDate.parse(dueText), {
+                        dueText = it.toString()
+                        if (LocalDate.parse(endText) < it) endText = it.toString()
+                    })
+                    DateRow("Hasta", LocalDate.parse(endText), { endText = it.toString() }, minDate = LocalDate.parse(dueText))
+                } else {
+                    DateRow(if (reminder == null) "Próxima fecha" else "Vence", LocalDate.parse(dueText), { dueText = it.toString() })
                 }
                 TimeRow(time) { timeText = it?.toString() }
 
-                Text("Se repite", fontSize = 12.sp, color = Palette.InkSoft)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Una repetición que no está entre las opciones (ej. cada 5 años) se muestra tal cual.
-                    if ((every to unit) !in repeatOptions) {
-                        FilterChip(true, {}, { ChipText(Recurrence.label(every, unit)) }, colors = chipColors())
-                    }
-                    repeatOptions.forEach { option ->
-                        FilterChip(
-                            selected = (every to unit) == option,
-                            onClick = {
-                                every = option.first
-                                unit = option.second
-                            },
-                            label = { ChipText(Recurrence.label(option.first, option.second)) },
-                            colors = chipColors(),
-                        )
-                    }
+                RepeatDropdown(every, unit, inRange) { newEvery, newUnit ->
+                    every = newEvery
+                    unit = newUnit
+                    // Algo de cada día se avisa el mismo día (no "3 días antes").
+                    if (newUnit == RepeatUnit.DAY) notice = 0
                 }
 
-                if (every != null && unit != null) {
+                if (every != null && unit != null && !inRange) {
                     Text("El siguiente se cuenta desde", fontSize = 12.sp, color = Palette.InkSoft)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
@@ -443,6 +500,7 @@ fun ReminderEditDialog(
                         note = note,
                         countFrom = countFrom,
                         everyKm = kmValue.takeIf { kind == ReminderKind.CAR },
+                        endsOn = LocalDate.parse(endText).takeIf { inRange && every != null },
                         dueTime = time,
                         alertMinutes = alert.takeIf { time != null },
                         listId = listId,
@@ -566,7 +624,7 @@ fun ReminderDetailSheet(
                 val facts = listOfNotNull(
                     copy.title,
                     reminder.amount?.let { "≈ ${Money.format(it)}" },
-                    Recurrence.label(reminder.every, reminder.unit) +
+                    Recurrence.label(reminder) +
                         (reminder.everyKm?.let { " o ${formatKm(it)}" } ?: ""),
                     reminder.time?.let { "Aviso: ${Recurrence.alertLabel(reminder.alertMinutes ?: 0).lowercase()}" }
                         ?: "Aviso: ${Recurrence.noticeLabel(reminder.notifyDaysBefore).lowercase()}",

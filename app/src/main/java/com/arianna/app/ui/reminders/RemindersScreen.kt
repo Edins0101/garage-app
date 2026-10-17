@@ -447,7 +447,7 @@ private fun ReminderTicket(reminder: Reminder, state: RemindersUiState, onOpen: 
         footer = listOfNotNull(
             copy.title.takeIf { state.filter == null },
             Recurrence.dueLabel(reminder, today),
-            Recurrence.label(reminder.every, reminder.unit),
+            Recurrence.label(reminder),
         ).joinToString(" · "),
         badge = reminder.amount?.let(Money::format),
         onClick = onOpen,
