@@ -1,5 +1,8 @@
 package com.arianna.app.ui.home
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.arianna.app.ui.components.TicketSkeleton
 import com.arianna.app.ui.components.SkeletonBox
 import com.arianna.app.ui.components.LoadNotice
@@ -24,7 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -40,10 +42,8 @@ import androidx.compose.material.icons.outlined.Diversity3
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +65,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.vectorResource
@@ -91,13 +90,11 @@ import com.arianna.app.ui.common.ConfirmDialog
 import com.arianna.app.ui.common.appViewModel
 import com.arianna.app.ui.components.CircleAvatar
 import com.arianna.app.ui.components.CosmicBackground
-import com.arianna.app.ui.components.GlassField
 import com.arianna.app.ui.components.MenuTile
 import com.arianna.app.ui.components.PeriodHeader
 import com.arianna.app.ui.components.PillButton
 import com.arianna.app.ui.components.SectionTitle
 import com.arianna.app.ui.components.SheetTitle
-import com.arianna.app.ui.components.SquareIconButton
 import com.arianna.app.ui.components.TicketCard
 import com.arianna.app.ui.components.WeekStrip
 import com.arianna.app.ui.components.ScrollingSheetLayout
@@ -127,7 +124,6 @@ fun HomeScreen(
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
 
-    var query by rememberSaveable { mutableStateOf("") }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var customizing by rememberSaveable { mutableStateOf(false) }
     var appearance by rememberSaveable { mutableStateOf(false) }
@@ -206,25 +202,6 @@ fun HomeScreen(
                             Dates.longDay(LocalDate.now()).uppercase(),
                             style = MaterialTheme.typography.labelMedium,
                             color = Palette.OnDarkSoft,
-                        )
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SquareIconButton(Icons.Outlined.Tune, "Ver todas las listas", onClick = {
-                            onOpenLists(ListsRoute())
-                        })
-                        Spacer(Modifier.width(12.dp))
-                        GlassField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = "Buscar en tus listas…",
-                            leadingIcon = Icons.Outlined.Search,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            onDone = {
-                                if (query.isNotBlank()) onOpenLists(ListsRoute(query = query.trim()))
-                            },
-                            modifier = Modifier.weight(1f),
                         )
                     }
 
@@ -330,9 +307,19 @@ private fun BrandRow(onAppearance: () -> Unit, onCustomize: () -> Unit, onLogout
             .padding(top = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(ImageVector.vectorResource(R.drawable.ic_brand), null, tint = Palette.OnDark, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(8.dp))
-        Text("ARIANNA", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 3.sp), color = Palette.OnDark)
+        // La "A" con estrella es la primera letra del nombre: se lee "A✦RIANNA".
+        Row(
+            Modifier.semantics(mergeDescendants = true) { contentDescription = "Arianna" },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(ImageVector.vectorResource(R.drawable.ic_brand), null, tint = Palette.OnDark, modifier = Modifier.size(24.dp))
+            Text(
+                "RIANNA",
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 17.sp, letterSpacing = 3.sp),
+                color = Palette.OnDark,
+                modifier = Modifier.clearAndSetSemantics {},
+            )
+        }
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onAppearance) {
             Icon(Icons.Outlined.Palette, contentDescription = "Apariencia", tint = Palette.OnDarkSoft)
