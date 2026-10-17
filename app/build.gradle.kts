@@ -24,8 +24,8 @@ android {
         applicationId = "com.arianna.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.8.0"
+        versionCode = 9
+        versionName = "0.8.1"
 
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
         // Datos falsos en el teléfono (sin backend): ./gradlew installDebug -Parianna.fakes=true
