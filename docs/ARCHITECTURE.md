@@ -71,11 +71,11 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 | `GarageRoute` | Mi garaje | Modos Día/Rango/Nota; mantener presionado un día abre su nota |
 | `ListsRoute(filter, query, create, join)` | Mis listas | Los mosaicos del inicio abren esta ruta con distintos parámetros |
 | `ListDetailRoute(id)` | Detalle | Agregar, marcar, eliminar (toque largo), limpiar, renombrar y compartir |
-| `JoinRoute(code)` | Unirse | También desde `arianna://join/{code}` y el App Link `https://garage-back-me4r.onrender.com/join/{code}` |
+| `JoinRoute(code)` | Unirse | También desde `arianna://join/{code}` y el App Link `https://arianna-back.onrender.com/join/{code}` |
 
 ## Cómo pasar de datos falsos a backend real
 
-1. En `app/build.gradle.kts`: `USE_FAKES` → `false` y `API_URL` → la URL del backend. **Hoy ya apunta a producción** (`https://garage-back-me4r.onrender.com/api`); para volver a los datos falsos, `USE_FAKES` → `true`.
+1. En `app/build.gradle.kts`: `USE_FAKES` → `false` y `API_URL` → la URL del backend. **Hoy ya apunta a producción** (`https://arianna-back.onrender.com/api`); para volver a los datos falsos, `USE_FAKES` → `true`.
 2. Implementar en el backend los endpoints de [API.md](API.md).
 3. Cuando exista login, asignar `ApiClient.authToken`.
 4. Para HTTP sin TLS en desarrollo hace falta permitir cleartext (network security config); en producción, usar HTTPS.

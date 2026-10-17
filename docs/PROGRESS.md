@@ -23,7 +23,7 @@
   - [x] Agregar elementos (con cantidad en compras), marcar, eliminar y limpiar los completados
   - [x] Compartir: enviar como texto (real), código de invitación, invitar por correo con rol (fake) y quitar miembros
   - [x] Unirse con código y deep link `arianna://join/CODIGO`
-  - [x] Enlace https para WhatsApp: `https://garage-back-me4r.onrender.com/join/CODIGO` (App Link verificado; si no hay app, página con el código)
+  - [x] Enlace https para WhatsApp: `https://arianna-back.onrender.com/join/CODIGO` (App Link verificado; si no hay app, página con el código)
 - [x] Probado en el emulador `Medium_Phone_API_37.0`: navegación, agregar y marcar, generar código, deep link válido e inválido, filtros
 
 ### Pendiente / ideas siguientes
@@ -39,7 +39,7 @@
 - [ ] Respetar el rol `VIEWER` en la UI (deshabilitar la edición)
 - [ ] Tests unitarios: `Dates`, repositorios fake y ViewModels
 - [x] **Backend** (`D:\Projects\garaje-backend`): FastAPI + Postgres 18 en Render, todos los endpoints de [API.md](API.md), permisos, JWT, 7 tests en verde y migración aplicada
-- [x] API desplegada en Render: https://garage-back-me4r.onrender.com (`/health`, `/docs`)
+- [x] API desplegada en Render: https://arianna-back.onrender.com (`/health`, `/docs`)
 - [x] App conectada a producción (`USE_FAKES=false`): login simple con nombre y correo, sesión guardada, cerrar sesión y cierre automático ante un 401
 - [x] Crear cuenta e iniciar sesión con correo y contraseña (scrypt), en el backend y en la app
 - [ ] Poner `ALLOW_DEV_LOGIN=false` en Render: la app ya no usa `/auth/dev`
@@ -125,4 +125,5 @@
 - Secciones dentro de las listas (`section`, migración `a7d3e5f9c216`): al agregar se elige la sección (o se crea una nueva) y queda puesta para los siguientes; "Por comprar" se agrupa por sección; mantener presionado → "Poner en una sección". 51 tests en el backend.
 - Pruebas: emulador aparte `Arianna_Pruebas` (emulator-5556) con el usuario demo "Prueba" (prueba@arianna.app). El emulador `Medium_Phone_API_37.0` es del usuario: no se toca.
 - APK release v0.8.0 (grupos, hora y rango en recordatorios, listas adjuntas, secciones en listas, Mis calendarios con días pagados, inicio simplificado). Probado en el emulador de pruebas contra producción con un usuario temporal (borrado): lista con sección, recordatorio con rango y lista adjunta, grupo con código y calendario.
-- Enlaces de invitación que se pueden tocar en WhatsApp: el backend comparte `https://garage-back-me4r.onrender.com/join/CODIGO` (`invite_url_base`), sirve esa página (código + botón "Abrir en Arianna" con `intent://`) y `/.well-known/assetlinks.json` con la huella de la llave de release. La app tiene un intent-filter https con `autoVerify` y el deep link de navegación. Probado en el emulador de pruebas contra producción: con el enlace y sin sesión, al entrar abre el grupo y la persona queda unida (usuarios temporales borrados). Solo funciona desde esta versión de la app: con la v0.8.0 el enlace abre la página web.
+- Enlaces de invitación que se pueden tocar en WhatsApp: el backend comparte `https://arianna-back.onrender.com/join/CODIGO` (`invite_url_base`), sirve esa página (código + botón "Abrir en Arianna" con `intent://`) y `/.well-known/assetlinks.json` con la huella de la llave de release. La app tiene un intent-filter https con `autoVerify` y el deep link de navegación. Probado en el emulador de pruebas contra producción: con el enlace y sin sesión, al entrar abre el grupo y la persona queda unida (usuarios temporales borrados). Solo funciona desde esta versión de la app: con la v0.8.0 el enlace abre la página web.
+- Nuevo servidor: `https://arianna-back.onrender.com` (misma base de datos). El servicio viejo `garage-back-me4r` ya no existe, así que las versiones anteriores de la app dejan de conectarse: hay que instalar la nueva. Se actualizaron `API_URL`, el App Link de invitaciones y `invite_url_base`.

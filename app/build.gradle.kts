@@ -30,7 +30,7 @@ android {
         // true → repositorios falsos (datos locales). false → backend real (ver docs/API.md).
         // Datos falsos en el teléfono (sin backend): ./gradlew installDebug -Parianna.fakes=true
         buildConfigField("boolean", "USE_FAKES", (findProperty("arianna.fakes") ?: "false").toString())
-        buildConfigField("String", "API_URL", "\"https://garage-back-me4r.onrender.com/api\"")
+        buildConfigField("String", "API_URL", "\"https://arianna-back.onrender.com/api\"")
     }
 
     signingConfigs {

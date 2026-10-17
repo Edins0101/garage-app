@@ -73,4 +73,4 @@ Está basado en una imagen de referencia que dio el usuario (app de viajes con e
 - **Día de garaje** (`GarageDay`): una fecha `yyyy-MM-dd` marcada, con nota opcional.
 - **Lista** (`Checklist`): de tipo `SHOPPING` (compras, admite cantidad) o `TODO` (tareas).
 - **Miembro** (`SharedMember`): persona con quien se compartió la lista; rol `EDITOR`/`VIEWER`, estado `PENDING`/`ACCEPTED`.
-- **Invitación** (`ShareInvite`): código de 6 caracteres y URL `https://garage-back-me4r.onrender.com/join/CODIGO` (también `arianna://join/CODIGO`); vence a los 7 días.
+- **Invitación** (`ShareInvite`): código de 6 caracteres y URL `https://arianna-back.onrender.com/join/CODIGO` (también `arianna://join/CODIGO`); vence a los 7 días.
