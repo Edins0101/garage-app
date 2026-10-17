@@ -71,7 +71,7 @@ Pantalla (Compose) ─▶ ViewModel (StateFlow) ─▶ interfaz de repositorio
 | `GarageRoute` | Mi garaje | Modos Día/Rango/Nota; mantener presionado un día abre su nota |
 | `ListsRoute(filter, query, create, join)` | Mis listas | Los mosaicos del inicio abren esta ruta con distintos parámetros |
 | `ListDetailRoute(id)` | Detalle | Agregar, marcar, eliminar (toque largo), limpiar, renombrar y compartir |
-| `JoinRoute(code)` | Unirse | También desde el deep link `arianna://join/{code}` |
+| `JoinRoute(code)` | Unirse | También desde `arianna://join/{code}` y el App Link `https://garage-back-me4r.onrender.com/join/{code}` |
 
 ## Cómo pasar de datos falsos a backend real
 

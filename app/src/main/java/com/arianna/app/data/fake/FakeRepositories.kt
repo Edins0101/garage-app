@@ -186,7 +186,7 @@ class FakeCountersRepository(private val store: FakeStore) : CountersRepository 
         val code = Ids.shareCode()
         val invite = ShareInvite(
             code = code,
-            url = "arianna://join/$code",
+            url = "https://garage-back-me4r.onrender.com/join/$code",
             trackerId = counter.id,
             expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
         )
@@ -660,7 +660,7 @@ class FakeSharingRepository(private val store: FakeStore) : SharingRepository {
         val code = Ids.shareCode()
         val invite = ShareInvite(
             code = code,
-            url = "arianna://join/$code",
+            url = "https://garage-back-me4r.onrender.com/join/$code",
             listId = listId,
             expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
         )
@@ -880,7 +880,7 @@ class FakeRemindersRepository(private val store: FakeStore) : RemindersRepositor
         val code = Ids.shareCode()
         val invite = ShareInvite(
             code = code,
-            url = "arianna://join/$code",
+            url = "https://garage-back-me4r.onrender.com/join/$code",
             spaceId = space.id,
             expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
         )

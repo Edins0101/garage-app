@@ -113,7 +113,7 @@ class FakeGroupsRepository(private val store: FakeStore) : GroupsRepository {
         val code = Ids.shareCode()
         val invite = ShareInvite(
             code = code,
-            url = "arianna://join/$code",
+            url = "https://garage-back-me4r.onrender.com/join/$code",
             groupId = group.id,
             expiresAt = nowInstant.plus(Duration.ofDays(7)).toString(),
         )

@@ -144,7 +144,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable<JoinRoute>(
-            deepLinks = listOf(navDeepLink<JoinRoute>(basePath = "arianna://join")),
+            deepLinks = listOf(
+                navDeepLink<JoinRoute>(basePath = "arianna://join"),
+                navDeepLink<JoinRoute>(basePath = "https://garage-back-me4r.onrender.com/join"),
+            ),
         ) { entry ->
             JoinScreen(
                 code = entry.toRoute<JoinRoute>().code,

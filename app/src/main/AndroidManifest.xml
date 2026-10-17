@@ -26,12 +26,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Invitaciones a listas: arianna://join/CODIGO -->
+            <!-- Invitaciones (listas, recordatorios, calendarios y grupos): arianna://join/CODIGO -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="arianna" android:host="join" />
+            </intent-filter>
+
+            <!-- El mismo enlace en https (WhatsApp solo vuelve tocables los http/https).
+                 autoVerify + /.well-known/assetlinks.json del backend: se abre directo en la app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="garage-back-me4r.onrender.com" android:pathPrefix="/join/" />
             </intent-filter>
 
             <!-- Al tocar una notificación: arianna://list/ID abre esa lista; arianna://reminders/payments, los pagos. -->
