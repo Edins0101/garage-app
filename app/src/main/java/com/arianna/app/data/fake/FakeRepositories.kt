@@ -333,7 +333,7 @@ private fun FakeDb.withCounters(): FakeDb {
 private fun FakeDb.withCounter(id: String, change: (FakeCounter) -> FakeCounter): FakeDb {
     val migrated = withCounters()
     val current = migrated.counters.find { it.id == id }
-        ?: throw DataException("La cuenta no existe", DataException.Kind.NOT_FOUND)
+        ?: throw DataException("El calendario no existe", DataException.Kind.NOT_FOUND)
     val next = change(current)
     return migrated.copy(counters = migrated.counters.map { if (it.id == id) next else it })
 }

@@ -113,9 +113,9 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                     ) {
                         val counter = state.counter
                         TopBar(
-                            title = counter?.name ?: "Cuenta",
+                            title = counter?.name ?: "Calendario",
                             overline = when {
-                                counter == null || counter.mine -> "Cuenta por día"
+                                counter == null || counter.mine -> "Calendario"
                                 counter.canEdit -> "De ${counter.ownerName} · puedes editar"
                                 else -> "De ${counter.ownerName} · solo ver"
                             },
@@ -126,7 +126,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                                     Icon(Icons.Outlined.GroupAdd, contentDescription = "Compartir", tint = Palette.OnDark)
                                 }
                                 IconButton(onClick = viewModel::openEditCounter) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "Editar cuenta", tint = Palette.OnDark)
+                                    Icon(Icons.Outlined.Edit, contentDescription = "Editar calendario", tint = Palette.OnDark)
                                 }
                             } else if (counter != null) {
                                 IconButton(onClick = viewModel::openLeave) {
@@ -267,7 +267,7 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                 intro = "Con \"Puede editar\" marca días y registra pagos (ej. tu pareja). " +
                     "Con \"Solo ver\" ve los días y cuánto se debe (ej. la niñera). Solo tú cambias la tarifa.",
                 codeHint = "Quien use el código entra como \"Solo ver\". Para darle edición, invita su correo.",
-                emptyMembers = "Todavía nadie más ve esta cuenta.",
+                emptyMembers = "Todavía nadie más ve este calendario.",
                 groups = GroupSharing(state.groups, counter.groups, viewModel::shareWithGroup) {
                     viewModel.closeDialog()
                     onOpenGroups()

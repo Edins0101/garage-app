@@ -127,7 +127,7 @@ fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        TopBar(title = "Cuentas por día", overline = "Garaje, niñera, expreso…", onBack = onBack)
+                        TopBar(title = "Mis calendarios", overline = "Días y pagos", onBack = onBack)
                         GlassCard {
                             Text("HASTA HOY", style = MaterialTheme.typography.labelLarge, color = Palette.OnDarkSoft)
                             Text(
@@ -144,7 +144,7 @@ fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                             )
                             Spacer(Modifier.height(14.dp))
                             PillButton(
-                                "Nueva cuenta",
+                                "Nuevo calendario",
                                 onClick = { viewModel.openCreate(true) },
                                 icon = Icons.Outlined.AddCircleOutline,
                                 light = true,
@@ -156,7 +156,7 @@ fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 },
                 sheet = {
                     LoadNotice(state.load, onRetry = viewModel::retry)
-                    SheetTitle("Mis cuentas")
+                    SheetTitle("Garaje, niñera, expreso…")
                     Spacer(Modifier.height(12.dp))
                     when {
                         state.load != Load.READY -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -174,7 +174,7 @@ fun CountersScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                                     "También sirve para los días que trabajas y te deben.",
                                 color = Palette.InkSoft,
                             )
-                            PillButton("Nueva cuenta", onClick = { viewModel.openCreate(true) }, icon = Icons.Outlined.AddCircleOutline)
+                            PillButton("Nuevo calendario", onClick = { viewModel.openCreate(true) }, icon = Icons.Outlined.AddCircleOutline)
                         }
                         else -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             state.counters.forEach { counter -> CounterTicket(counter, onClick = { onOpen(counter.id) }) }

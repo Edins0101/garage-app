@@ -115,3 +115,4 @@
 - La agenda del inicio usa los mismos colores (pagado en verde, día de pago con anillo dorado). Al elegir un día pagado, la barra dice "Pagado" y no deja quitarlo.
 - Inicio más limpio: se quitaron el botón de filtros y el buscador (cada pantalla tiene los suyos; Listas ya busca listas y elementos). La marca ahora se lee "A✦RIANNA": el ícono es la primera letra del nombre.
 - Recordatorios: "Un día" o "Rango de fechas" (desde/hasta; ej. regar las plantas cada día del 24 al 30), `endsOn` (migración `f2a6c9e1b384`), "Se repite" como lista desplegable con "Cada día" y "Cada 2 semanas". Calendario para elegir fechas rehecho: claro, en español y empezando el lunes (también en Registrar pago). 50 tests en el backend y 7 en la app.
+- Nuevo nombre: "Mis calendarios" (mosaico "Calendario", encima "Días y pagos", botón "Nuevo calendario"; cada uno se presenta como "Calendario"). Reemplaza a "Cuentas por día".

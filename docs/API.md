@@ -44,7 +44,7 @@ Al iniciar sesión, las invitaciones por correo pendientes a ese email se acepta
 | PUT | `/garage-days/{date}` | `{ note?: string }` | `GarageDay` (crea o actualiza) |
 | DELETE | `/garage-days/{date}` | — | 204 |
 
-## Contadores por día (en la app: «Cuentas por día»)
+## Contadores por día (en la app: «Mis calendarios»)
 
 Cada usuario puede tener varios contadores (el garaje, la niñera, el expreso, días trabajados…). Cada uno
 tiene su tarifa, marcado automático, días, cargos y pagos; `direction` = `pay` (yo pago) o `earn` (me pagan).

@@ -202,7 +202,7 @@ fun GroupsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                         TopBar(title = "Grupos", overline = "Familia, roomies…", onBack = onBack)
                         GlassCard {
                             Text(
-                                "Agrega a tu gente una vez y comparte listas, recordatorios o cuentas por día con todo el grupo. " +
+                                "Agrega a tu gente una vez y comparte listas, recordatorios o calendarios con todo el grupo. " +
                                     "Quien entre después también lo verá.",
                                 color = Palette.OnDarkSoft,
                                 fontSize = 14.sp,
@@ -421,7 +421,7 @@ fun GroupScreen(groupId: String, onBack: () -> Unit, onOpenItem: (GroupItem) -> 
                     Spacer(Modifier.height(10.dp))
                     if (group.shared.isEmpty()) {
                         Text(
-                            "Todavía nada. Abre una lista, una categoría de recordatorios o una cuenta por día, toca Compartir " +
+                            "Todavía nada. Abre una lista, una categoría de recordatorios o un calendario, toca Compartir " +
                                 "y elige «${group.name}».",
                             color = Palette.InkSoft,
                             fontSize = 14.sp,

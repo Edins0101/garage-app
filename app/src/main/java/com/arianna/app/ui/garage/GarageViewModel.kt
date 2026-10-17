@@ -136,7 +136,7 @@ class GarageViewModel(
 
     /** "Solo ver": avisa en vez de cambiar nada. Devuelve true si se puede editar. */
     private fun editable(): Boolean {
-        if (!state.value.canEdit) notify("Solo puedes ver esta cuenta")
+        if (!state.value.canEdit) notify("Solo puedes ver este calendario")
         return state.value.canEdit
     }
 
@@ -191,7 +191,7 @@ class GarageViewModel(
     fun saveCounter(draft: CounterDraft) = launchSafely {
         val counter = state.value.counter ?: return@launchSafely
         counters.update(counter, draft)
-        notify("Cuenta guardada")
+        notify("Calendario guardado")
         closeDialog()
     }
 
@@ -208,7 +208,7 @@ class GarageViewModel(
 
     fun openDay(date: LocalDate) = local.update { it.copy(dialog = GarageDialog.Day(date)) }
     fun openSettings() {
-        if (!state.value.mine) return notify("Solo el dueño de la cuenta cambia la tarifa")
+        if (!state.value.mine) return notify("Solo el dueño del calendario cambia la tarifa")
         local.update { it.copy(dialog = GarageDialog.Settings) }
     }
 
@@ -239,7 +239,7 @@ class GarageViewModel(
                         // Los días ya pagados se saltan.
                         val range = Dates.between(minOf(start, date), maxOf(start, date)).filterNot(current::isClosed)
                         garage.setDays(range)
-                        notify("${range.size} días marcados en ${state.value.counter?.name ?: "la cuenta"}")
+                        notify("${range.size} días marcados en ${state.value.counter?.name ?: "el calendario"}")
                     }
                 }
             }

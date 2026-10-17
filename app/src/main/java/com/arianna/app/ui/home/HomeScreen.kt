@@ -276,7 +276,7 @@ fun HomeScreen(
 private fun ColumnScope.SectionSkeleton(section: HomeSection) {
     SheetTitle(
         when (section) {
-            HomeSection.GARAGE -> "Cuentas por día"
+            HomeSection.GARAGE -> "Mis calendarios"
             HomeSection.REMINDERS -> "Recordatorios"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
@@ -346,7 +346,7 @@ private fun MainMenu(
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
         when (section) {
-            HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Cuentas", onOpenCounters)
+            HomeSection.GARAGE -> MenuEntry(Icons.Outlined.CalendarMonth, "Calendario", onOpenCounters)
             HomeSection.REMINDERS -> MenuEntry(Icons.Outlined.NotificationsActive, "Recordatorios") { onOpenReminders(null) }
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
@@ -389,14 +389,14 @@ private fun GarageAgenda(
 ) {
     val counter = state.counter
     if (counter == null) {
-        SheetTitle("Cuentas por día")
+        SheetTitle("Mis calendarios")
         Spacer(Modifier.height(14.dp))
         Text(
             "Marca los días del garaje, la niñera o el expreso y te digo cuánto debes hasta hoy.",
             color = Palette.InkSoft,
         )
         Spacer(Modifier.height(10.dp))
-        PillButton("Nueva cuenta", onClick = onOpenCounters, light = true, icon = Icons.Outlined.AddCircleOutline)
+        PillButton("Nuevo calendario", onClick = onOpenCounters, light = true, icon = Icons.Outlined.AddCircleOutline)
         return
     }
     val earn = counter.direction == CounterDirection.EARN
