@@ -2,6 +2,9 @@ package com.arianna.app.data.remote
 
 import com.arianna.app.domain.repository.DataException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -21,17 +24,58 @@ class ApiClient(
     private val tokenProvider: () -> String?,
     /** Se llama cuando el servidor responde 401 (token vencido o inválido). */
     private val onUnauthorized: () -> Unit,
+    /** Copia local de las respuestas para funcionar sin conexión (null = sin copia). */
+    private val cache: ResponseCache? = null,
+    /** false si el teléfono no tiene internet: se usa la copia sin esperar al servidor. */
+    private val hasInternet: () -> Boolean = { true },
 ) {
 
     val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
+    private val _offline = MutableStateFlow(false)
+    /** true mientras se muestran datos guardados porque no hay conexión. */
+    val offline: StateFlow<Boolean> = _offline.asStateFlow()
+
+    /**
+     * Las lecturas (GET) se guardan en la copia local; sin conexión se responde con ella.
+     * Los cambios necesitan internet: sin conexión fallan con un mensaje claro.
+     */
     suspend fun <T> request(
         method: String,
         path: String,
         body: String? = null,
         responseSerializer: KSerializer<T>?,
-        /** Token a usar en vez del de la sesión (p. ej. al cerrar sesión, cuando ya se borró). */
         authToken: String? = null,
+    ): T? {
+        val cacheable = method == "GET" && cache != null && responseSerializer != null && !path.startsWith("/auth/")
+        if (!hasInternet()) {
+            if (cacheable) cached(path, responseSerializer!!)?.let { return it }
+            _offline.value = true
+            throw DataException(if (method == "GET") OFFLINE_EMPTY else OFFLINE_WRITE, DataException.Kind.NETWORK)
+        }
+        return try {
+            send(method, path, body, responseSerializer, authToken) { text -> if (cacheable) cache!!.put(path, text) }
+                .also { _offline.value = false }
+        } catch (e: DataException) {
+            if (e.kind != DataException.Kind.NETWORK) throw e
+            if (cacheable) cached(path, responseSerializer!!)?.let { return it }
+            throw if (method == "GET") e else DataException(OFFLINE_WRITE, DataException.Kind.NETWORK)
+        }
+    }
+
+    private suspend fun <T> cached(path: String, serializer: KSerializer<T>): T? = withContext(Dispatchers.IO) {
+        val text = cache?.get(path) ?: return@withContext null
+        runCatching { json.decodeFromString(serializer, text) }.getOrNull()?.also { _offline.value = true }
+    }
+
+    private suspend fun <T> send(
+        method: String,
+        path: String,
+        body: String?,
+        responseSerializer: KSerializer<T>?,
+        /** Token a usar en vez del de la sesión (p. ej. al cerrar sesión, cuando ya se borró). */
+        authToken: String?,
+        onBody: (String) -> Unit,
     ): T? = withContext(Dispatchers.IO) {
         val connection = try {
             (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
@@ -67,7 +111,7 @@ class ApiClient(
             }
             if (status == 204 || responseSerializer == null) return@withContext null
             val text = connection.inputStream.bufferedReader().use { it.readText() }
-            json.decodeFromString(responseSerializer, text)
+            json.decodeFromString(responseSerializer, text).also { onBody(text) }
         } finally {
             connection.disconnect()
         }
@@ -107,5 +151,7 @@ class ApiClient(
 
     private companion object {
         const val NETWORK_MESSAGE = "No se pudo conectar con el servidor. Revisa tu internet e intenta de nuevo."
+        const val OFFLINE_WRITE = "Sin conexión: este cambio no se guardó. Inténtalo cuando vuelva el internet."
+        const val OFFLINE_EMPTY = "Sin conexión y todavía no hay datos guardados en este teléfono."
     }
 }

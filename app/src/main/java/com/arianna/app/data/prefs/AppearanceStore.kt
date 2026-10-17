@@ -15,9 +15,15 @@ class AppearanceStore(context: Context) {
         ThemeState.accent = AccentColor.entries.find { it.name == saved } ?: AccentColor.VIOLET
     }
 
-    fun set(accent: AccentColor) {
+    /** Se llama después de cada cambio del usuario (para subirlo a la cuenta). */
+    var onChanged: ((AccentColor) -> Unit)? = null
+
+    fun set(accent: AccentColor) = set(accent, notify = true)
+
+    fun set(accent: AccentColor, notify: Boolean) {
         ThemeState.accent = accent
         prefs.edit { putString(KEY, accent.name) }
+        if (notify) onChanged?.invoke(accent)
     }
 
     private companion object {

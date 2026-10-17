@@ -12,6 +12,7 @@ class AriannaApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.appearance.restore()
+        container.watchConnection()
         Notifications.createChannels(this)
     }
 }

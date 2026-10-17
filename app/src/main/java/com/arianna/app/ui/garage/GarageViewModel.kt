@@ -20,6 +20,7 @@ import com.arianna.app.domain.repository.CountersRepository
 import com.arianna.app.ui.counters.CounterCopy
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
+import com.arianna.app.util.CalendarStats
 import com.arianna.app.util.Dates
 import com.arianna.app.util.Money
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +71,7 @@ data class GarageUiState(
     val mine: Boolean = counter?.mine ?: true
     val copy: CounterCopy = CounterCopy.of(counter?.direction ?: CounterDirection.PAY)
     val markedDates: Set<LocalDate> = days.map { it.localDate }.toSet()
+    val stats: CalendarStats = CalendarStats.of(markedDates)
     /** Hasta esta fecha todo está pagado y cerrado. */
     val paidUntil: LocalDate? = summary.paidUntilDate
     val paidDates: Set<LocalDate> = paidUntil?.let { limit -> markedDates.filter { it <= limit }.toSet() }.orEmpty()

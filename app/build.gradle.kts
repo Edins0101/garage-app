@@ -95,6 +95,10 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.work.runtime.ktx)
+    // Desbloquear con huella o rostro (BiometricPrompt necesita FragmentActivity).
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.appcompat)
 
     testImplementation(libs.junit)
 }

@@ -1,5 +1,6 @@
 package com.arianna.app.domain.repository
 
+import com.arianna.app.domain.model.AccountPreferences
 import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.GroupMember
 import com.arianna.app.domain.model.Checklist
@@ -129,6 +130,21 @@ interface GarageRepository {
 
     suspend fun addPayment(date: LocalDate, amount: Double, note: String?)
     suspend fun removePayment(paymentId: String)
+}
+
+/**
+ * Borrados que se pueden deshacer: lo borrado se oculta enseguida y se borra de verdad
+ * pasados unos segundos ([UNDO_WINDOW_MS]), salvo que se llame a [undo] con la clave devuelta.
+ */
+interface UndoableDeletes {
+    fun deleteListLater(id: String, onError: (String) -> Unit = {}): String
+    fun removeItemLater(listId: String, itemId: String, onError: (String) -> Unit = {}): String
+    fun undo(key: String)
+
+    companion object {
+        /** Un poco más que el Snackbar largo (10 s), para que el botón nunca llegue tarde. */
+        const val UNDO_WINDOW_MS = 11_000L
+    }
 }
 
 interface ListsRepository {
@@ -269,4 +285,12 @@ interface GroupsRepository {
 
     /** Comparte con el grupo con ese permiso; [role] null deja de compartir. */
     suspend fun share(target: ShareTarget, group: Group, role: MemberRole?)
+}
+
+/** Inicio y color guardados en la cuenta (GET/PUT /me/preferences). */
+interface PreferencesRepository {
+    suspend fun load(): AccountPreferences
+
+    /** Lo que venga en null queda como estaba en el servidor. */
+    suspend fun save(preferences: AccountPreferences)
 }

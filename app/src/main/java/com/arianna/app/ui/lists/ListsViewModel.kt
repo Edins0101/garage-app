@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistKind
 import com.arianna.app.domain.repository.ListsRepository
+import com.arianna.app.domain.repository.UndoableDeletes
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,6 +37,7 @@ class ListsViewModel(
     initialFilter: String?,
     initialQuery: String?,
     private val lists: ListsRepository,
+    private val deletes: UndoableDeletes,
 ) : BaseViewModel() {
 
     private val filter = MutableStateFlow(ListFilter.from(initialFilter))
@@ -79,8 +81,9 @@ class ListsViewModel(
         _openList.emit(list.id)
     }
 
-    fun delete(list: Checklist) = launchSafely {
-        lists.deleteList(list.id)
-        notify("Lista \"${list.title}\" eliminada")
+    /** Se quita enseguida; se borra de verdad si no se toca "Deshacer". */
+    fun delete(list: Checklist) {
+        val key = deletes.deleteListLater(list.id, onError = ::notify)
+        notifyUndo("Lista «${list.title}» eliminada") { deletes.undo(key) }
     }
 }

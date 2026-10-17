@@ -1,5 +1,6 @@
 package com.arianna.app.data.fake
 
+import com.arianna.app.domain.model.AccountPreferences
 import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.GarageDay
@@ -48,6 +49,8 @@ data class FakeDb(
     val anchorDays: Map<String, Int> = emptyMap(),
     /** Grupos (sin otros usuarios: los integrantes quedan pendientes). */
     val groups: List<Group> = emptyList(),
+    /** Inicio y color "guardados en la cuenta". */
+    val preferences: AccountPreferences = AccountPreferences(),
 )
 
 /**

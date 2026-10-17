@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Saber si hay internet: sin conexión se muestran los datos guardados. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Recordatorios con hora: avisar a la hora exacta y reprogramar al reiniciar el teléfono. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />

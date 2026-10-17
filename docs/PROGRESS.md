@@ -45,15 +45,17 @@
 - [x] Secciones dentro de las listas (Baño, Patio, Perros…)
 - [x] Enlaces de invitación https que se pueden tocar en WhatsApp (App Links)
 - [x] APK de release firmado con R8 (v0.8.1) e instalado en el teléfono físico del usuario
+- [x] Editar el nombre y la cantidad de un elemento (mantener presionado → "Editar nombre o cantidad")
+- [x] "Deshacer" al eliminar un elemento o una lista
+- [x] Estadísticas del calendario: días del año, racha actual, mejor racha y días por mes (últimos 6)
+- [x] Inicio y color guardados en la cuenta (`/me/preferences`, migración `b8e2d4f6a913`)
+- [x] Sin conexión: se ve lo último guardado (franja "Sin conexión" arriba) y se recarga solo al volver el internet
+- [x] Entrar con huella, rostro o el PIN del teléfono (opción "Seguridad" en el inicio; se ofrece una vez al entrar)
 
 ### Pendiente / ideas siguientes
 
-- [ ] Editar el texto o la cantidad de un elemento existente (el backend ya tiene `updateItem`; falta la UI)
-- [ ] "Deshacer" al eliminar un elemento o una lista (hoy solo existe en los recordatorios pagados)
-- [ ] Estadísticas del calendario: días por año, racha actual y gráfico mensual
-- [ ] Guardar las preferencias del inicio y el color en el backend (hoy quedan en el teléfono)
-- [ ] Copia local en la app para funcionar sin conexión
-- [ ] Más tests unitarios (hoy solo `RemindersTest`): `Dates`, repositorios fake y ViewModels
+- [ ] Cambios sin conexión (guardarlos y subirlos al volver el internet); hoy sin conexión solo se puede ver
+- [ ] Más tests unitarios (hoy `RemindersTest` y `CalendarStatsTest`): `Dates`, repositorios fake y ViewModels
 - [ ] Página de invitación: botón para descargar la app si no está instalada
 - [ ] (Opcional) Login con Google: OAuth en Google Cloud (Client ID Web + Android) y `GOOGLE_CLIENT_ID`
 
@@ -147,3 +149,4 @@ Orden sugerido: Neon → borrar cuenta y privacidad → prueba cerrada → (en p
 - Nuevo servidor: `https://arianna-back.onrender.com` (misma base de datos). El servicio viejo `garage-back-me4r` ya no existe, así que las versiones anteriores de la app dejan de conectarse: hay que instalar la nueva. Se actualizaron `API_URL`, el App Link de invitaciones y `invite_url_base`.
 - APK release v0.8.1 (servidor nuevo `arianna-back`, enlaces https). Probado en el emulador de pruebas: App Link verificado, entrar y unirse a un grupo desde el enlace, inicio sin errores. Usuarios temporales borrados.
 - v0.8.1 instalada en el teléfono del usuario: funciona con el servidor nuevo. En Render se corrigieron `ALLOW_DEV_LOGIN` (quedó en `true` al crear el servicio; ahora `false`, verificado con 404 en `/auth/dev`) e `INVITE_URL_BASE`. Falta que el usuario confirme los correos (Brevo) y las notificaciones (Firebase) en el servicio nuevo.
+- Editar elementos, "Deshacer" al borrar, estadísticas del calendario, inicio y color en la cuenta, modo sin conexión y bloqueo con huella/rostro/PIN. Backend: `GET/PUT /me/preferences` (migración `b8e2d4f6a913`, probada en Postgres 18 con upgrade/check/downgrade/upgrade), 53 tests. App: `UndoableLists` (decorador de cualquier `ListsRepository`, borra a los 11 s), `ResponseCache` en `ApiClient` (GET guardados; sin internet responde con la copia y los cambios fallan con mensaje claro), `PreferencesSync`, `AppLock` con BiometricPrompt (`BIOMETRIC_WEAK | DEVICE_CREDENTIAL`, se vuelve a pedir tras 2 min en segundo plano; `MainActivity` pasa a `FragmentActivity` y el tema a AppCompat para el diálogo de Android 8). Probado en el emulador de pruebas contra producción con un usuario temporal (borrado): editar y quitar la cantidad, borrar y deshacer (el servidor conserva el elemento), estadísticas (11 días, racha 5, gráfico), activar el bloqueo con PIN y desbloquear al abrir, color cambiado desde la API aplicado al reabrir, modo avión con datos guardados y aviso al intentar agregar, y la franja se quita al volver el internet.

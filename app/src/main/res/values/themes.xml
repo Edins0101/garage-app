@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Tema base de la ventana. Los colores reales viven en ui/theme (Compose). -->
-    <style name="Theme.Arianna" parent="android:Theme.Material.NoActionBar">
+    <!-- AppCompat: el diálogo de huella de Android 8 (BiometricPrompt) lo necesita. -->
+    <style name="Theme.Arianna" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/night</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

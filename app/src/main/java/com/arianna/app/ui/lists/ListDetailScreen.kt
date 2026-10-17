@@ -107,6 +107,7 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
             it.lists,
             it.sharing,
             it.groups,
+            it.undoableDeletes,
             demoMode = it.useFakes,
             currentUserId = it.auth.session.value?.user?.id,
         )
@@ -118,7 +119,7 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
 
     var sharing by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf<ChecklistItem?>(null) }
+    var editing by remember { mutableStateOf<ChecklistItem?>(null) }
     // Menú del elemento (toque largo), visor de foto y enlace de imagen.
     var actionsFor by remember { mutableStateOf<ChecklistItem?>(null) }
     /** Sección en la que se agregan los nuevos elementos (se mantiene para agregar varios seguidos). */
@@ -266,10 +267,11 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                             onQuantityChange = { newQuantity = it },
                             onAdd = {
                                 if (newText.isNotBlank()) {
-                                    viewModel.addItem(newText, newQuantity.takeIf { isShopping && it.isNotBlank() }, addSection)
-                                    newText = ""
-                                    newQuantity = ""
-                                    viewModel.onQueryChange("")
+                                    viewModel.addItem(newText, newQuantity.takeIf { isShopping && it.isNotBlank() }, addSection) {
+                                        newText = ""
+                                        newQuantity = ""
+                                        viewModel.onQueryChange("")
+                                    }
                                 }
                             },
                         )
@@ -352,7 +354,7 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
                     }
 
                     Text(
-                        "Toca para marcar · mantén presionado para sección, fotos o eliminar",
+                        "Toca para marcar · mantén presionado para editar, sección, fotos o eliminar",
                         color = Palette.InkSoft,
                         fontSize = 12.sp,
                         modifier = Modifier
@@ -421,7 +423,11 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
             },
             onDelete = {
                 actionsFor = null
-                deleting = item
+                viewModel.remove(item)
+            },
+            onEdit = {
+                actionsFor = null
+                editing = item
             },
             onDismiss = { actionsFor = null },
             onMoveSection = {
@@ -471,15 +477,67 @@ fun ListDetailScreen(onBack: () -> Unit, onOpenGroups: () -> Unit) {
     viewing?.let { item ->
         item.image?.let { image -> ImageViewerDialog(image, item.text, onDismiss = { viewing = null }) }
     }
-    deleting?.let { item ->
-        ConfirmDialog(
-            title = "Eliminar",
-            message = "¿Quitar \"${item.text}\" de la lista?",
-            confirmText = "Eliminar",
-            onConfirm = { viewModel.remove(item) },
-            onDismiss = { deleting = null },
+    editing?.let { item ->
+        EditItemDialog(
+            item = item,
+            withQuantity = list?.kind == ChecklistKind.SHOPPING || item.quantity != null,
+            onSave = { text, quantity ->
+                editing = null
+                viewModel.editItem(item, text, quantity)
+            },
+            onDismiss = { editing = null },
         )
     }
+}
+
+/** Cambiar el texto y la cantidad de un elemento. */
+@Composable
+private fun EditItemDialog(
+    item: ChecklistItem,
+    withQuantity: Boolean,
+    onSave: (text: String, quantity: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(item.text) }
+    var quantity by rememberSaveable { mutableStateOf(item.quantity.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Sheet,
+        titleContentColor = Palette.Ink,
+        title = { Text("Editar elemento") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(200) },
+                    label = { Text("Nombre") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    colors = appFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (withQuantity) {
+                    OutlinedTextField(
+                        value = quantity,
+                        onValueChange = { quantity = it.take(60) },
+                        label = { Text("Cantidad (opcional)") },
+                        placeholder = { Text("Ej. 2, 1 kg") },
+                        singleLine = true,
+                        colors = appFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = text.isNotBlank(), onClick = { onSave(text, quantity) }) {
+                Text("Guardar", color = Palette.Violet)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = Palette.InkSoft) }
+        },
+    )
 }
 
 @Composable

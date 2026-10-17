@@ -17,6 +17,7 @@ import com.arianna.app.domain.repository.DataException
 import com.arianna.app.domain.repository.PhotoInput
 import com.arianna.app.domain.repository.ListsRepository
 import com.arianna.app.domain.repository.SharingRepository
+import com.arianna.app.domain.repository.UndoableDeletes
 import com.arianna.app.ui.common.BaseViewModel
 import com.arianna.app.ui.common.Load
 import com.arianna.app.ui.navigation.ListDetailRoute
@@ -57,6 +58,7 @@ class ListDetailViewModel(
     private val lists: ListsRepository,
     private val sharing: SharingRepository,
     private val groups: GroupsRepository,
+    private val deletes: UndoableDeletes,
     /** true mientras se usan repositorios falsos (sin backend). */
     val demoMode: Boolean,
     private val currentUserId: String?,
@@ -145,8 +147,10 @@ class ListDetailViewModel(
         }
     }
 
-    fun addItem(text: String, quantity: String?, section: String?) = launchSafely {
+    /** [onAdded] limpia el campo solo si se guardó (sin conexión no se pierde lo escrito). */
+    fun addItem(text: String, quantity: String?, section: String?, onAdded: () -> Unit = {}) = launchSafely {
         lists.addItem(listId, text, quantity, section)
+        onAdded()
     }
 
     fun moveToSection(item: ChecklistItem, section: String?) = launchSafely {
@@ -158,9 +162,19 @@ class ListDetailViewModel(
         lists.updateItem(listId, item.id, done = !item.done)
     }
 
-    fun remove(item: ChecklistItem) = launchSafely {
-        lists.removeItem(listId, item.id)
-        notify("\"${item.text}\" eliminado")
+    /** Se quita enseguida; se borra de verdad si no se toca "Deshacer". */
+    fun remove(item: ChecklistItem) {
+        val key = deletes.removeItemLater(listId, item.id, onError = ::notify)
+        notifyUndo("«${item.text}» eliminado") { deletes.undo(key) }
+    }
+
+    /** Cambia el texto y la cantidad (vacía la quita). */
+    fun editItem(item: ChecklistItem, text: String, quantity: String) = launchSafely {
+        val cleanText = text.trim()
+        if (cleanText.isEmpty()) return@launchSafely notify("Escribe el nombre del elemento")
+        val cleanQuantity = quantity.trim()
+        if (cleanText == item.text && cleanQuantity == item.quantity.orEmpty()) return@launchSafely
+        lists.updateItem(listId, item.id, text = cleanText, quantity = cleanQuantity)
     }
 
     fun clearCompleted() = launchSafely { lists.clearCompleted(listId) }

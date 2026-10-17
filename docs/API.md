@@ -35,6 +35,10 @@ Al iniciar sesión, las invitaciones por correo pendientes a ese email se acepta
 | Método | Ruta | Respuesta |
 |---|---|---|
 | GET | `/me` | `User` |
+| GET | `/me/preferences` | `{ home: { order, hidden, configured } \| null, accent: string \| null }` |
+| PUT | `/me/preferences` | Mismo cuerpo; lo que venga en `null` queda como estaba. Devuelve lo guardado |
+
+- Preferencias de la app en la cuenta (se ven igual en cualquier teléfono): `home.order` y `home.hidden` son nombres de secciones del inicio (`GARAGE`, `REMINDERS`, `SHOPPING`, `TASKS`) y `accent` el color principal (`VIOLET`, `BLUE`…). La app las trae al entrar y sube cada cambio (`PreferencesSync`).
 
 ## Días de garaje
 
@@ -134,6 +138,9 @@ Límites: imagen de máximo 2 MB y 200 MB por catálogo. Sin almacenamiento conf
 | DELETE | `/lists/{id}/items/{itemId}` | — | 204 |
 | POST | `/lists/{id}/items/clear-completed` | — | `Checklist` |
 
+- Editar un elemento: `PATCH …/items/{itemId}` con `text` y/o `quantity`; `quantity: ""` quita la cantidad.
+- Borrar con "Deshacer": la app oculta la lista o el elemento y manda el `DELETE` pasados 11 s si no se deshizo (`UndoableLists`, solo en la app).
+- Sin conexión: las respuestas de los `GET` se guardan en el teléfono (`ResponseCache`) y se muestran cuando no hay internet; los cambios necesitan conexión.
 - Los elementos tienen `section` (opcional, máx. 60): sección dentro de la lista (Baño, Patio, Perros…). `POST /lists/{id}/items` la acepta y `PATCH …/items/{itemId}` la cambia; `null` la quita.
 
 ## Compartir

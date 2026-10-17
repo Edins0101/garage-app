@@ -1,7 +1,11 @@
 package com.arianna.app.di
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import com.arianna.app.BuildConfig
+import com.arianna.app.data.UndoableLists
 import com.arianna.app.data.fake.FakeAuthRepository
 import com.arianna.app.data.fake.FakeCountersRepository
 import com.arianna.app.data.fake.FakeGroupsRepository
@@ -10,6 +14,7 @@ import com.arianna.app.data.fake.FakeRemindersRepository
 import com.arianna.app.data.fake.FakeSharingRepository
 import com.arianna.app.data.fake.FakeStore
 import com.arianna.app.data.remote.ApiClient
+import com.arianna.app.data.remote.ResponseCache
 import com.arianna.app.data.remote.RemoteAuthRepository
 import com.arianna.app.data.remote.RemoteCountersRepository
 import com.arianna.app.data.remote.RemoteGroupsRepository
@@ -21,6 +26,10 @@ import com.arianna.app.data.push.PushRegistrar
 import com.arianna.app.data.reminders.ReminderSnapshotStore
 import com.arianna.app.data.reminders.ReminderWorker
 import com.arianna.app.data.prefs.HomePrefsStore
+import com.arianna.app.data.prefs.PreferencesSync
+import com.arianna.app.data.fake.FakePreferencesRepository
+import com.arianna.app.data.remote.RemotePreferencesRepository
+import com.arianna.app.data.security.AppLock
 import com.arianna.app.data.session.SessionStore
 import com.arianna.app.domain.repository.AuthRepository
 import com.arianna.app.domain.repository.CountersRepository
@@ -31,7 +40,14 @@ import com.arianna.app.domain.repository.ReminderDraft
 import com.arianna.app.domain.model.Reminder
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.domain.repository.SharingRepository
+import com.arianna.app.domain.repository.UndoableDeletes
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Inyección de dependencias manual. Elige repositorios falsos o remotos
@@ -44,19 +60,52 @@ class AppContainer(context: Context) {
     private val sessions = SessionStore(context)
     val homePrefs = HomePrefsStore(context)
     val appearance = AppearanceStore(context)
+    /** Bloqueo con huella, rostro o PIN (opción de este teléfono). */
+    val appLock = AppLock(context)
     private val fakeStore by lazy { FakeStore(File(context.filesDir, "fake-db.json")) }
+    /** Copia local de las respuestas para funcionar sin conexión. */
+    private val responseCache = ResponseCache(File(context.filesDir, "api-cache"))
     private val api by lazy {
         ApiClient(
             baseUrl = BuildConfig.API_URL,
             tokenProvider = { sessions.token },
             onUnauthorized = { auth.logout() },
+            cache = responseCache,
+            hasInternet = ::hasInternet,
         )
+    }
+
+    /** true mientras se muestran datos guardados porque no hay conexión. */
+    val offline: StateFlow<Boolean> by lazy { if (useFakes) MutableStateFlow(false) else api.offline }
+
+    /** Al volver el internet se recarga todo: se ven los datos al día y se quita el aviso. */
+    fun watchConnection() {
+        if (useFakes) return
+        val manager = appContext.getSystemService(ConnectivityManager::class.java) ?: return
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        manager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (!offline.value || sessions.token == null) return
+                scope.launch {
+                    runCatching { lists.refresh() }
+                    runCatching { counters.refresh() }
+                    runCatching { reminders.refresh() }
+                    runCatching { groups.refresh() }
+                }
+            }
+        })
+    }
+
+    private fun hasInternet(): Boolean {
+        val manager = appContext.getSystemService(ConnectivityManager::class.java) ?: return true
+        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     /** Repositorios de datos de la sesión actual; se recrean al cerrar sesión. */
     private class DataRepositories(
         val counters: CountersRepository,
-        val lists: ListsRepository,
+        val lists: UndoableLists,
         val sharing: SharingRepository,
         val reminders: RemindersRepository,
         val groups: GroupsRepository,
@@ -66,7 +115,7 @@ class AppContainer(context: Context) {
         if (useFakes) {
             DataRepositories(
                 FakeCountersRepository(fakeStore),
-                FakeListsRepository(fakeStore, File(appContext.filesDir, "fake-images")),
+                UndoableLists(FakeListsRepository(fakeStore, File(appContext.filesDir, "fake-images"))),
                 FakeSharingRepository(fakeStore),
                 FakeRemindersRepository(fakeStore),
                 FakeGroupsRepository(fakeStore),
@@ -77,7 +126,7 @@ class AppContainer(context: Context) {
             val reminders = RemoteRemindersRepository(api)
             DataRepositories(
                 counters,
-                lists,
+                UndoableLists(lists),
                 RemoteSharingRepository(api, lists, counters),
                 reminders,
                 RemoteGroupsRepository(api, lists, counters, reminders),
@@ -86,6 +135,12 @@ class AppContainer(context: Context) {
 
     @Volatile
     private var data = createData()
+
+    /** Inicio y color guardados en la cuenta. */
+    val preferencesSync: PreferencesSync by lazy {
+        val repository by lazy { if (useFakes) FakePreferencesRepository(fakeStore) else RemotePreferencesRepository(api) }
+        PreferencesSync({ repository }, homePrefs, appearance)
+    }
 
     /** Notificaciones push: registra este teléfono en el backend (no aplica en modo datos falsos). */
     val push: PushRegistrar by lazy {
@@ -100,6 +155,9 @@ class AppContainer(context: Context) {
                 push.unregister(closingSessionToken = sessions.token)
                 ReminderWorker.cancel(appContext)
                 ReminderSnapshotStore(appContext).clear()
+                preferencesSync.stop()
+                responseCache.clear()
+                appLock.unlockForLogout()
                 delegate.logout()
                 data = createData()
             }
@@ -108,6 +166,8 @@ class AppContainer(context: Context) {
 
     val counters: CountersRepository get() = data.counters
     val lists: ListsRepository get() = data.lists
+    /** Borrar listas y elementos con "Deshacer". */
+    val undoableDeletes: UndoableDeletes get() = data.lists
     val sharing: SharingRepository get() = data.sharing
     val reminders: RemindersRepository get() = data.reminders.withAlarmRefresh()
     val groups: GroupsRepository get() = data.groups

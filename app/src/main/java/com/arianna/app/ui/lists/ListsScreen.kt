@@ -76,7 +76,7 @@ fun ListsScreen(
     /** Abre la pantalla de unirse: sirve para códigos de listas y de secciones (Pagos). */
     onJoinCode: (String) -> Unit,
 ) {
-    val viewModel = appViewModel { ListsViewModel(route.filter, route.query, it.lists) }
+    val viewModel = appViewModel { ListsViewModel(route.filter, route.query, it.lists, it.undoableDeletes) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)

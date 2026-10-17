@@ -596,7 +596,8 @@ class FakeListsRepository(private val store: FakeStore, private val imagesDir: F
             if (item.id != itemId) return@map item
             item.copy(
                 text = text?.trim()?.takeIf { it.isNotEmpty() } ?: item.text,
-                quantity = quantity ?: item.quantity,
+                // "" quita la cantidad, igual que el backend.
+                quantity = if (quantity != null) quantity.trim().ifEmpty { null } else item.quantity,
                 done = done ?: item.done,
                 doneBy = when (done) {
                     true -> FakeSeed.currentUser.id

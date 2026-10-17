@@ -164,6 +164,10 @@ fun GarageScreen(counterId: String, onBack: () -> Unit, onOpenList: (String) -> 
                     Spacer(Modifier.height(12.dp))
                     CalendarLegend(state)
                     Spacer(Modifier.height(28.dp))
+                    if (state.load == Load.READY && state.days.isNotEmpty()) {
+                        CalendarStatsCard(state.stats)
+                        Spacer(Modifier.height(28.dp))
+                    }
                     SheetTitle(state.copy.paymentsTitle) {
                         Text(
                             "+ REGISTRAR",

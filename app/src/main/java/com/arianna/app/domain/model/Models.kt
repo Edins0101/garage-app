@@ -430,3 +430,19 @@ data class Group(
     /** Personas en el grupo, contando a quien lo creó. */
     val size: Int get() = members.size + 1
 }
+
+/** Preferencias guardadas en la cuenta: se ven igual en cualquier teléfono. */
+@Serializable
+data class AccountPreferences(
+    val home: HomeLayout? = null,
+    /** Nombre del color principal (VIOLET, BLUE…). */
+    val accent: String? = null,
+)
+
+/** Orden y secciones ocultas del inicio, por nombre (GARAGE, REMINDERS, SHOPPING, TASKS). */
+@Serializable
+data class HomeLayout(
+    val order: List<String> = emptyList(),
+    val hidden: List<String> = emptyList(),
+    val configured: Boolean = false,
+)

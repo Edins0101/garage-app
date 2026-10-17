@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.NotificationsActive
 import com.arianna.app.ui.reminders.KindCopy
 import com.arianna.app.ui.reminders.kindIcon
@@ -56,6 +57,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -147,11 +150,27 @@ fun HomeScreen(
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var customizing by rememberSaveable { mutableStateOf(false) }
     var appearance by rememberSaveable { mutableStateOf(false) }
-    val appearanceStore = (LocalContext.current.applicationContext as AriannaApp).container.appearance
+    var security by rememberSaveable { mutableStateOf(false) }
+    val container = (LocalContext.current.applicationContext as AriannaApp).container
+    val appearanceStore = container.appearance
+    val appLock = container.appLock
+    val scope = rememberCoroutineScope()
+    val showMessage: (String) -> Unit = { message -> scope.launch { snackbar.showSnackbar(message) } }
+    // Se ofrece una sola vez, después de elegir qué ver primero.
+    var offerLock by rememberSaveable { mutableStateOf(!appLock.offered && !appLock.enabled.value && appLock.isAvailable()) }
 
     // Primera vez: preguntar qué quiere ver primero.
     if (!state.prefs.configured) {
         WelcomeChoiceSheet(onChoose = viewModel::choosePrimary)
+    }
+    if (offerLock && state.load == Load.READY && state.prefs.configured) {
+        OfferLockDialog(appLock, onMessage = showMessage, onDismiss = {
+            appLock.offered = true
+            offerLock = false
+        })
+    }
+    if (security) {
+        SecurityDialog(appLock, onMessage = showMessage, onDismiss = { security = false })
     }
     if (appearance) {
         AppearanceDialog(
@@ -195,6 +214,7 @@ fun HomeScreen(
                 ) {
                     BrandRow(
                         onAppearance = { appearance = true },
+                        onSecurity = { security = true },
                         onCustomize = { customizing = true },
                         onLogout = { confirmLogout = true },
                     )
@@ -321,7 +341,7 @@ private fun ColumnScope.SectionSkeleton(section: HomeSection) {
 }
 
 @Composable
-private fun BrandRow(onAppearance: () -> Unit, onCustomize: () -> Unit, onLogout: () -> Unit) {
+private fun BrandRow(onAppearance: () -> Unit, onSecurity: () -> Unit, onCustomize: () -> Unit, onLogout: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -344,6 +364,9 @@ private fun BrandRow(onAppearance: () -> Unit, onCustomize: () -> Unit, onLogout
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onAppearance) {
             Icon(Icons.Outlined.Palette, contentDescription = "Apariencia", tint = Palette.OnDarkSoft)
+        }
+        IconButton(onClick = onSecurity) {
+            Icon(Icons.Outlined.Fingerprint, contentDescription = "Seguridad", tint = Palette.OnDarkSoft)
         }
         IconButton(onClick = onCustomize) {
             Icon(Icons.Outlined.DashboardCustomize, contentDescription = "Personalizar inicio", tint = Palette.OnDarkSoft)

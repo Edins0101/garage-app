@@ -1,6 +1,8 @@
 package com.arianna.app.ui.common
 
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.ViewModel
@@ -30,13 +32,21 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/** Aviso para el Snackbar; con [action] muestra un botón (ej. "Deshacer"). */
+data class UiMessage(val text: String, val action: String? = null, val onAction: (() -> Unit)? = null)
+
 /** ViewModel con canal de mensajes para mostrar errores/avisos en un Snackbar. */
 abstract class BaseViewModel : ViewModel() {
-    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    val messages: SharedFlow<String> = _messages.asSharedFlow()
+    private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
+    val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
     protected fun notify(message: String) {
-        _messages.tryEmit(message)
+        _messages.tryEmit(UiMessage(message))
+    }
+
+    /** Aviso con el botón "Deshacer". */
+    protected fun notifyUndo(message: String, onUndo: () -> Unit) {
+        _messages.tryEmit(UiMessage(message, "Deshacer", onUndo))
     }
 
     /** Lanza una corrutina y convierte cualquier error en un mensaje para el usuario. */
@@ -100,6 +110,14 @@ inline fun <reified VM : ViewModel> appViewModel(
 @Composable
 fun CollectMessages(viewModel: BaseViewModel, snackbar: SnackbarHostState) {
     LaunchedEffect(viewModel) {
-        viewModel.messages.collect { snackbar.showSnackbar(it) }
+        viewModel.messages.collect { message ->
+            val result = snackbar.showSnackbar(
+                message.text,
+                actionLabel = message.action,
+                // Con "Deshacer" se deja más tiempo (dura lo mismo que la espera antes de borrar).
+                duration = if (message.action != null) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) message.onAction?.invoke()
+        }
     }
 }

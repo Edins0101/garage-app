@@ -58,9 +58,13 @@ class HomePrefsStore(context: Context) {
 
     fun observe(userId: String): StateFlow<HomePrefs> = flow(userId).asStateFlow()
 
-    fun save(userId: String, value: HomePrefs) {
+    /** Se llama después de cada cambio del usuario (para subirlo a la cuenta). */
+    var onSaved: ((userId: String, value: HomePrefs) -> Unit)? = null
+
+    fun save(userId: String, value: HomePrefs, notify: Boolean = true) {
         prefs.edit { putString(userId, json.encodeToString(HomePrefs.serializer(), value)) }
         flow(userId).value = value
+        if (notify) onSaved?.invoke(userId, value)
     }
 
     /** v0.4–0.5 tenían Pagos y Mi hogar como secciones; ahora van juntas en Recordatorios. */

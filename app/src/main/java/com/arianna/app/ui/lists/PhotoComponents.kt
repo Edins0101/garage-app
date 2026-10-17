@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -147,6 +148,7 @@ fun ItemActionsSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     onMoveSection: () -> Unit = {},
+    onEdit: () -> Unit = {},
 ) {
     val hasOwnPhoto = item.image?.source == ImageSource.ITEM
     val hasProductPhoto = item.image?.source == ImageSource.PRODUCT
@@ -174,6 +176,10 @@ fun ItemActionsSheet(
             }
             Spacer(Modifier.height(12.dp))
 
+            if (canEdit) {
+                ActionRow(Icons.Outlined.Edit, "Editar nombre o cantidad", onClick = onEdit)
+                HorizontalDivider(color = Palette.Divider, modifier = Modifier.padding(vertical = 8.dp))
+            }
             if (canEdit && item.productId != null) {
                 SectionLabel("Foto de \"${item.text}\" en todas tus listas")
                 ActionRow(Icons.Outlined.PhotoLibrary, "Elegir de la galería") { onGallery(PhotoTarget.PRODUCT) }

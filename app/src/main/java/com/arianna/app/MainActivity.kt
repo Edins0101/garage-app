@@ -6,12 +6,37 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.arianna.app.ui.theme.Palette
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,11 +46,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.arianna.app.data.push.Notifications
 import com.arianna.app.data.reminders.ReminderWorker
+import com.arianna.app.ui.login.LockScreen
 import com.arianna.app.ui.login.LoginScreen
 import com.arianna.app.ui.navigation.AppNavHost
 import com.arianna.app.ui.theme.AriannaTheme
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity: el diálogo de huella/rostro (BiometricPrompt) la necesita.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Íconos claros en las barras del sistema: el fondo de la app siempre es oscuro.
@@ -33,19 +60,36 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
-        val auth = (application as AriannaApp).container.auth
+        val container = (application as AriannaApp).container
+        val auth = container.auth
+        val appLock = container.appLock
         setContent {
             AriannaTheme {
                 val session by auth.session.collectAsStateWithLifecycle()
+                val locked by appLock.locked.collectAsStateWithLifecycle()
                 val userId = session?.user?.id
-                if (userId == null) {
-                    LoginScreen()
-                } else {
+                when {
+                    userId == null -> LoginScreen()
+                    locked -> LockScreen(
+                        userName = session?.user?.name,
+                        onUnlock = { appLock.authenticate(this, "Desbloquear Arianna") },
+                        onLogout = auth::logout,
+                    )
                     // key: al cambiar de usuario se reinicia la navegación y sus ViewModels.
-                    key(userId) { MainContent(this) }
+                    else -> key(userId) { MainContent(this) }
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as AriannaApp).container.appLock.onForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as AriannaApp).container.appLock.onBackground()
     }
 }
 
@@ -62,7 +106,39 @@ private fun MainContent(activity: ComponentActivity) {
     }
 
     NotificationSetup(activity)
-    AppNavHost(navController)
+    val container = (activity.application as AriannaApp).container
+    val userId = container.auth.session.collectAsStateWithLifecycle().value?.user?.id
+    LaunchedEffect(userId) { userId?.let(container.preferencesSync::start) }
+    val offline by container.offline.collectAsStateWithLifecycle()
+    Column(Modifier.fillMaxSize()) {
+        if (offline) OfflineBanner()
+        // Con el aviso arriba, las pantallas ya no dejan el espacio de la barra de estado.
+        Box(
+            Modifier
+                .weight(1f)
+                .then(if (offline) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
+        ) {
+            AppNavHost(navController)
+        }
+    }
+}
+
+/** Franja arriba mientras se ven los datos guardados en el teléfono (no tapa los avisos de abajo). */
+@Composable
+private fun OfflineBanner() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Palette.Ink)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.CloudOff, contentDescription = null, tint = Palette.OnDark, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Sin conexión · ves lo último guardado", color = Palette.OnDark, fontSize = 13.sp)
+    }
 }
 
 /**
