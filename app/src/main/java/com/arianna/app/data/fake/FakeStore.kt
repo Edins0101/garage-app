@@ -1,6 +1,8 @@
 package com.arianna.app.data.fake
 
 import com.arianna.app.domain.model.AccountPreferences
+import com.arianna.app.domain.model.Appliance
+import com.arianna.app.domain.model.ApplianceUse
 import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.GarageDay
@@ -51,6 +53,9 @@ data class FakeDb(
     val groups: List<Group> = emptyList(),
     /** Inicio y color "guardados en la cuenta". */
     val preferences: AccountPreferences = AccountPreferences(),
+    /** "¿Está libre?" y su historial (el más reciente primero). */
+    val appliances: List<Appliance> = emptyList(),
+    val applianceUses: Map<String, List<ApplianceUse>> = emptyMap(),
 )
 
 /**

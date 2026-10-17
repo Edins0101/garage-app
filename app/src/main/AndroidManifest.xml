@@ -45,13 +45,14 @@
                 <data android:scheme="https" android:host="arianna-back.onrender.com" android:pathPrefix="/join/" />
             </intent-filter>
 
-            <!-- Al tocar una notificación: arianna://list/ID abre esa lista; arianna://reminders/payments, los pagos. -->
+            <!-- Al tocar una notificación: arianna://list/ID abre esa lista; arianna://reminders/payments, los pagos; arianna://appliances, ¿Está libre?. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="arianna" android:host="list" />
                 <data android:scheme="arianna" android:host="reminders" />
                 <data android:scheme="arianna" android:host="counter" />
+                <data android:scheme="arianna" android:host="appliances" />
             </intent-filter>
         </activity>
 

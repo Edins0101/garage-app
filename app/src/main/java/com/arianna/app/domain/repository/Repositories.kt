@@ -1,6 +1,10 @@
 package com.arianna.app.domain.repository
 
 import com.arianna.app.domain.model.AccountPreferences
+import com.arianna.app.domain.model.Appliance
+import com.arianna.app.domain.model.ApplianceIcon
+import com.arianna.app.domain.model.ApplianceUse
+import com.arianna.app.domain.model.NotifyMode
 import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.GroupMember
 import com.arianna.app.domain.model.Checklist
@@ -265,6 +269,7 @@ sealed interface ShareTarget {
     data class ListTarget(override val id: String) : ShareTarget
     data class SpaceTarget(override val id: String) : ShareTarget
     data class CounterTarget(override val id: String) : ShareTarget
+    data class ApplianceTarget(override val id: String) : ShareTarget
 }
 
 /** Grupos (Familia, Roomies…): se comparte una lista, sección o contador con todo el grupo. */
@@ -293,4 +298,25 @@ interface PreferencesRepository {
 
     /** Lo que venga en null queda como estaba en el servidor. */
     suspend fun save(preferences: AccountPreferences)
+}
+
+/** Lo que el usuario llena al crear o editar un equipo de "¿Está libre?". */
+data class ApplianceDraft(val name: String, val icon: ApplianceIcon, val defaultMinutes: Int?)
+
+/** "¿Está libre?": equipos compartidos (lavadora, secadora, baño…). Ver docs/API.md. */
+interface AppliancesRepository {
+    /** Míos y de mis grupos, con su estado. */
+    fun observeAppliances(): Flow<List<Appliance>>
+    suspend fun refresh()
+
+    suspend fun create(draft: ApplianceDraft): Appliance
+    suspend fun update(appliance: Appliance, draft: ApplianceDraft)
+    suspend fun delete(appliance: Appliance)
+
+    /** "La estoy usando" por [minutes] (null = sin hora estimada). Falla si otra persona lo usa. */
+    suspend fun start(appliance: Appliance, minutes: Int?): Appliance
+    /** "Ya la liberé" (también sirve para liberar uno que alguien olvidó). */
+    suspend fun finish(appliance: Appliance): Appliance
+    suspend fun setNotify(appliance: Appliance, mode: NotifyMode)
+    suspend fun history(appliance: Appliance): List<ApplianceUse>
 }

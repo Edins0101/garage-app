@@ -3,6 +3,8 @@ package com.arianna.app.ui.home
 import androidx.lifecycle.viewModelScope
 import com.arianna.app.data.prefs.HomePrefs
 import com.arianna.app.data.prefs.HomePrefsStore
+import com.arianna.app.domain.model.Appliance
+import com.arianna.app.domain.repository.AppliancesRepository
 import com.arianna.app.data.prefs.HomeSection
 import com.arianna.app.domain.model.Checklist
 import com.arianna.app.domain.model.ChecklistKind
@@ -25,6 +27,7 @@ import com.arianna.app.util.Money
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import com.arianna.app.domain.model.Payment
@@ -54,6 +57,8 @@ data class HomeUiState(
     val counter: Counter? = null,
     /** Pagos de [counter] (días de pago en la agenda). */
     val payments: List<Payment> = emptyList(),
+    /** "¿Está libre?": equipos compartidos. */
+    val appliances: List<Appliance> = emptyList(),
     val load: Load = Load.LOADING,
 ) {
     /** Hasta esta fecha todo está pagado y no se cambia. */
@@ -111,6 +116,8 @@ data class HomeUiState(
                     }
                     HomeSection.SHOPPING -> openItems(shoppingLists).takeIf { it > 0 }?.let { "$it por comprar" }
                     HomeSection.TASKS -> openItems(todoLists).takeIf { it > 0 }?.let { if (it == 1) "1 tarea" else "$it tareas" }
+                    // No es un pendiente: su estado se ve en la sección.
+                    HomeSection.APPLIANCES -> null
                 }
             }
             if (parts.isEmpty()) "Soy Arianna. Todo al día por hoy ✨"
@@ -127,6 +134,7 @@ class HomeViewModel(
     lists: ListsRepository,
     reminders: RemindersRepository,
     private val prefsStore: HomePrefsStore,
+    appliances: AppliancesRepository,
 ) : BaseViewModel() {
 
     private val userId = auth.session.value?.user?.id ?: "local"
@@ -153,12 +161,14 @@ class HomeViewModel(
 
     val state: StateFlow<HomeUiState> = loadingState(HomeUiState(), { copy(load = it) }) {
         combine(
-            combine(userName, prefs) { name, homePrefs -> name to homePrefs },
+            combine(userName, prefs, appliances.observeAppliances().catch { emit(emptyList()) }) { name, homePrefs, equipment ->
+                Triple(name, homePrefs, equipment)
+            },
             agenda,
             lists.observeLists(),
             week,
             reminders.observeReminders(),
-        ) { (name, homePrefs), (all, counter, days, payments), allLists, (anchor, selected), allReminders ->
+        ) { (name, homePrefs, equipment), (all, counter, days, payments), allLists, (anchor, selected), allReminders ->
             HomeUiState(
                 userName = name,
                 days = days,
@@ -171,6 +181,7 @@ class HomeViewModel(
                 counters = all,
                 counter = counter,
                 payments = payments,
+                appliances = equipment,
             )
         }
     }

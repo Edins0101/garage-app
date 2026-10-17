@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.LocalLaundryService
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -75,6 +76,11 @@ private val HomeSection.info: SectionInfo
             Icons.Outlined.TaskAlt,
             "Tareas",
             "Pendientes de la casa, del carro o lo que necesites",
+        )
+        HomeSection.APPLIANCES -> SectionInfo(
+            Icons.Outlined.LocalLaundryService,
+            "¿Está libre?",
+            "La lavadora, la secadora o el baño compartidos: quién los usa y cuándo quedan libres",
         )
     }
 

@@ -393,6 +393,7 @@ enum class GroupItemType {
     @SerialName("list") LIST,
     @SerialName("space") SPACE,
     @SerialName("tracker") TRACKER,
+    @SerialName("appliance") APPLIANCE,
 }
 
 /** Algo compartido con un grupo (para la pantalla del grupo). */
@@ -424,8 +425,11 @@ data class Group(
     val role: GroupRole = GroupRole.OWNER,
     val members: List<GroupMember> = emptyList(),
     val shared: List<GroupItem> = emptyList(),
+    /** Equipos de "¿Está libre?" (el backend los manda aparte para no romper versiones anteriores). */
+    val sharedAppliances: List<GroupItem> = emptyList(),
     val createdAt: String,
 ) {
+    val allShared: List<GroupItem> get() = shared + sharedAppliances
     val mine: Boolean get() = role == GroupRole.OWNER
     /** Personas en el grupo, contando a quien lo creó. */
     val size: Int get() = members.size + 1
@@ -445,4 +449,65 @@ data class HomeLayout(
     val order: List<String> = emptyList(),
     val hidden: List<String> = emptyList(),
     val configured: Boolean = false,
+)
+
+
+// ---------------------------------------------------------------- ¿Está libre? (equipos compartidos)
+
+@Serializable
+enum class ApplianceIcon(val label: String) {
+    @SerialName("washer") WASHER("Lavadora"),
+    @SerialName("dryer") DRYER("Secadora"),
+    @SerialName("bath") BATH("Baño"),
+    @SerialName("car") CAR("Carro"),
+    @SerialName("kitchen") KITCHEN("Cocina"),
+    @SerialName("tv") TV("TV / consola"),
+    @SerialName("computer") COMPUTER("Computadora"),
+    @SerialName("other") OTHER("Otro"),
+}
+
+/** Qué avisos quiero de un equipo. */
+@Serializable
+enum class NotifyMode(val label: String) {
+    @SerialName("all") ALL("Cuando lo ocupen y cuando se libere"),
+    @SerialName("free") FREE("Solo cuando se libere"),
+    @SerialName("none") NONE("Ningún aviso"),
+}
+
+/** Equipo compartido de la casa (lavadora, secadora, baño…): libre u ocupado por alguien. */
+@Serializable
+data class Appliance(
+    val id: String,
+    val name: String,
+    val icon: ApplianceIcon = ApplianceIcon.OTHER,
+    /** Cuánto dura un uso normal; se propone al ocuparlo. */
+    val defaultMinutes: Int? = null,
+    val ownerId: String,
+    val ownerName: String,
+    val role: CounterRole = CounterRole.OWNER,
+    val busy: Boolean = false,
+    val busyById: String? = null,
+    val busyByName: String? = null,
+    val busySince: String? = null,
+    /** Hora estimada en que se libera. */
+    val expectedEnd: String? = null,
+    val notify: NotifyMode = NotifyMode.ALL,
+    val groups: List<GroupShare> = emptyList(),
+) {
+    val mine: Boolean get() = role == CounterRole.OWNER
+    val canUse: Boolean get() = role != CounterRole.VIEWER
+    val busySinceInstant: Instant? get() = busySince?.let(Instant::parse)
+    val expectedEndInstant: Instant? get() = expectedEnd?.let(Instant::parse)
+}
+
+/** Un uso del historial. */
+@Serializable
+data class ApplianceUse(
+    val id: String,
+    val userName: String,
+    val startedAt: String,
+    val endedAt: String? = null,
+    val endedByName: String? = null,
+    /** Se liberó solo porque nadie lo hizo. */
+    val auto: Boolean = false,
 )

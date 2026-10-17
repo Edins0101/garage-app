@@ -62,7 +62,9 @@ data class GroupSharing(
     /** Con qué grupos ya está compartido. */
     val shared: List<GroupShare>,
     val onShare: (Group, MemberRole?) -> Unit,
-    /** Abre la pantalla de grupos (para crear uno). */
+    /** Cómo se llama el permiso de editar (en "¿Está libre?" es "Puede usarlo"). */
+    val editorLabel: String = "Puede editar",
+    /** Abre la pantalla de grupos (para crear uno). Va al final: se pasa como lambda. */
     val onOpenGroups: () -> Unit,
 )
 
@@ -231,8 +233,9 @@ fun ShareSheet(
     }
 }
 
+/** También la usa el detalle de "¿Está libre?" (los equipos solo se comparten con grupos). */
 @Composable
-private fun GroupSection(sharing: GroupSharing) {
+internal fun GroupSection(sharing: GroupSharing) {
     Section("Con un grupo") {
         if (sharing.groups.isEmpty()) {
             Text(
@@ -257,7 +260,16 @@ private fun GroupSection(sharing: GroupSharing) {
                         FilterChip(
                             selected = current == option,
                             onClick = { if (current != option) sharing.onShare(group, option) },
-                            label = { Text(option?.let(::roleLabel) ?: "No", style = MaterialTheme.typography.bodyMedium) },
+                            label = {
+                                Text(
+                                    when (option) {
+                                        null -> "No"
+                                        MemberRole.EDITOR -> sharing.editorLabel
+                                        else -> roleLabel(option)
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Palette.Violet,
                                 selectedLabelColor = Palette.OnDark,

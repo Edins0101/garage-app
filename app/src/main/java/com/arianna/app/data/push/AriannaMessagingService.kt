@@ -27,10 +27,16 @@ class AriannaMessagingService : FirebaseMessagingService() {
         val title = data["title"] ?: message.notification?.title ?: return
         val body = data["body"] ?: message.notification?.body.orEmpty()
         val kind = data["kind"]
+        val appliance = data["applianceId"] != null
         val link = data["listId"]?.let(Notifications::listLink)
             ?: data["trackerId"]?.let(Notifications::counterLink)
+            ?: Notifications.appliancesLink().takeIf { appliance }
             ?: kind?.let(Notifications::remindersLink)
-        val channel = if (kind != null) Notifications.CHANNEL_REMINDERS else Notifications.CHANNEL_LISTS
+        val channel = when {
+            appliance -> Notifications.CHANNEL_APPLIANCES
+            kind != null -> Notifications.CHANNEL_REMINDERS
+            else -> Notifications.CHANNEL_LISTS
+        }
         Notifications.show(this, title, body, link = link, tag = data["tag"], channel = channel)
     }
 }

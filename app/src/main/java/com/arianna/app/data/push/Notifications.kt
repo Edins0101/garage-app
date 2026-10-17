@@ -19,10 +19,12 @@ import com.arianna.app.R
 object Notifications {
     const val CHANNEL_LISTS = "listas"
     const val CHANNEL_REMINDERS = "recordatorios"
+    const val CHANNEL_APPLIANCES = "esta_libre"
 
     fun listLink(listId: String) = "arianna://list/$listId"
     fun remindersLink(kind: String) = "arianna://reminders/$kind"
     fun counterLink(id: String) = "arianna://counter/$id"
+    fun appliancesLink() = "arianna://appliances"
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -34,6 +36,10 @@ object Notifications {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_REMINDERS, "Recordatorios", NotificationManager.IMPORTANCE_HIGH)
                 .apply { description = "Pagos y mantenimientos por vencer o vencidos, y cuando alguien marca uno" },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_APPLIANCES, "¿Está libre?", NotificationManager.IMPORTANCE_HIGH)
+                .apply { description = "Cuando alguien ocupa o libera la lavadora, el baño u otro equipo compartido" },
         )
     }
 

@@ -6,6 +6,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import com.arianna.app.BuildConfig
 import com.arianna.app.data.UndoableLists
+import com.arianna.app.data.appliances.withEndReminder
+import com.arianna.app.data.fake.FakeAppliancesRepository
 import com.arianna.app.data.fake.FakeAuthRepository
 import com.arianna.app.data.fake.FakeCountersRepository
 import com.arianna.app.data.fake.FakeGroupsRepository
@@ -14,6 +16,7 @@ import com.arianna.app.data.fake.FakeRemindersRepository
 import com.arianna.app.data.fake.FakeSharingRepository
 import com.arianna.app.data.fake.FakeStore
 import com.arianna.app.data.remote.ApiClient
+import com.arianna.app.data.remote.RemoteAppliancesRepository
 import com.arianna.app.data.remote.ResponseCache
 import com.arianna.app.data.remote.RemoteAuthRepository
 import com.arianna.app.data.remote.RemoteCountersRepository
@@ -31,6 +34,7 @@ import com.arianna.app.data.fake.FakePreferencesRepository
 import com.arianna.app.data.remote.RemotePreferencesRepository
 import com.arianna.app.data.security.AppLock
 import com.arianna.app.data.session.SessionStore
+import com.arianna.app.domain.repository.AppliancesRepository
 import com.arianna.app.domain.repository.AuthRepository
 import com.arianna.app.domain.repository.CountersRepository
 import com.arianna.app.domain.repository.GroupsRepository
@@ -91,6 +95,7 @@ class AppContainer(context: Context) {
                     runCatching { counters.refresh() }
                     runCatching { reminders.refresh() }
                     runCatching { groups.refresh() }
+                    runCatching { appliances.refresh() }
                 }
             }
         })
@@ -109,6 +114,7 @@ class AppContainer(context: Context) {
         val sharing: SharingRepository,
         val reminders: RemindersRepository,
         val groups: GroupsRepository,
+        val appliances: AppliancesRepository,
     )
 
     private fun createData(): DataRepositories =
@@ -119,17 +125,20 @@ class AppContainer(context: Context) {
                 FakeSharingRepository(fakeStore),
                 FakeRemindersRepository(fakeStore),
                 FakeGroupsRepository(fakeStore),
+                FakeAppliancesRepository(fakeStore),
             )
         } else {
             val lists = RemoteListsRepository(api)
             val counters = RemoteCountersRepository(api)
             val reminders = RemoteRemindersRepository(api)
+            val appliances = RemoteAppliancesRepository(api)
             DataRepositories(
                 counters,
                 UndoableLists(lists),
                 RemoteSharingRepository(api, lists, counters),
                 reminders,
-                RemoteGroupsRepository(api, lists, counters, reminders),
+                RemoteGroupsRepository(api, lists, counters, reminders, appliances),
+                appliances,
             )
         }
 
@@ -171,6 +180,8 @@ class AppContainer(context: Context) {
     val sharing: SharingRepository get() = data.sharing
     val reminders: RemindersRepository get() = data.reminders.withAlarmRefresh()
     val groups: GroupsRepository get() = data.groups
+    /** "¿Está libre?": equipos compartidos. */
+    val appliances: AppliancesRepository get() = data.appliances.withEndReminder(appContext)
 
     /** Tras crear, editar, marcar o borrar, se vuelven a calcular los avisos (incluidas las alarmas con hora). */
     private fun RemindersRepository.withAlarmRefresh(): RemindersRepository {

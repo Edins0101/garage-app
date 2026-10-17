@@ -19,6 +19,7 @@ import com.arianna.app.ui.lists.ListDetailScreen
 import com.arianna.app.ui.lists.ListsScreen
 import com.arianna.app.domain.model.ReminderKind
 import com.arianna.app.ui.reminders.RemindersScreen
+import com.arianna.app.ui.appliances.AppliancesScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,6 +28,10 @@ object HomeRoute
 /** Lista de contadores por día. */
 @Serializable
 object CountersRoute
+
+/** "¿Está libre?" (lavadora, baño…). También se abre con arianna://appliances (avisos). */
+@Serializable
+object AppliancesRoute
 
 /** Calendario y cuenta de un contador (el garaje es uno más). */
 @Serializable
@@ -76,6 +81,7 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenList = { id -> navController.navigate(ListDetailRoute(id)) },
                 onOpenGroups = { navController.navigate(GroupsRoute) },
                 onJoinCode = { code -> navController.navigate(JoinRoute(code)) },
+                onOpenAppliances = { navController.navigate(AppliancesRoute) },
             )
         }
         composable<GroupsRoute> {
@@ -94,9 +100,18 @@ fun AppNavHost(navController: NavHostController) {
                             GroupItemType.LIST -> ListDetailRoute(item.id)
                             GroupItemType.SPACE -> RemindersRoute(item.kind)
                             GroupItemType.TRACKER -> CounterRoute(item.id)
+                            GroupItemType.APPLIANCE -> AppliancesRoute
                         },
                     )
                 },
+            )
+        }
+        composable<AppliancesRoute>(
+            deepLinks = listOf(navDeepLink<AppliancesRoute>(basePath = "arianna://appliances")),
+        ) {
+            AppliancesScreen(
+                onBack = { if (!navController.popBackStack()) navController.navigate(HomeRoute) },
+                onOpenGroups = { navController.navigate(GroupsRoute) },
             )
         }
         composable<CountersRoute> {

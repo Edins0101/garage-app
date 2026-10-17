@@ -55,6 +55,8 @@ import com.arianna.app.domain.model.CounterIcon
 import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.GroupItem
 import com.arianna.app.domain.model.GroupItemType
+import com.arianna.app.domain.model.ApplianceIcon
+import com.arianna.app.ui.appliances.applianceIcon
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.MemberStatus
 import com.arianna.app.domain.model.ReminderKind
@@ -245,10 +247,10 @@ fun GroupsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                                 TicketCard(
                                     footer = listOf(
                                         if (group.size == 1) "Solo tú" else "${group.size} personas",
-                                        when (group.shared.size) {
+                                        when (group.allShared.size) {
                                             0 -> "nada compartido aún"
                                             1 -> "1 cosa compartida"
-                                            else -> "${group.shared.size} cosas compartidas"
+                                            else -> "${group.allShared.size} cosas compartidas"
                                         },
                                     ).joinToString(" · "),
                                     onClick = { onOpen(group.id) },
@@ -285,6 +287,7 @@ private fun itemIcon(item: GroupItem): ImageVector = when (item.type) {
     GroupItemType.LIST -> listIcon(if (item.kind == "todo") ChecklistKind.TODO else ChecklistKind.SHOPPING)
     GroupItemType.SPACE -> kindIcon(ReminderKind.fromApi(item.kind) ?: ReminderKind.OTHER)
     GroupItemType.TRACKER -> counterIcon(CounterIcon.entries.find { it.name.equals(item.kind, ignoreCase = true) } ?: CounterIcon.OTHER)
+    GroupItemType.APPLIANCE -> applianceIcon(ApplianceIcon.entries.find { it.name.equals(item.kind, ignoreCase = true) } ?: ApplianceIcon.OTHER)
 }
 
 private fun itemTitle(item: GroupItem): String = when (item.type) {
@@ -292,6 +295,7 @@ private fun itemTitle(item: GroupItem): String = when (item.type) {
     // Las secciones de recordatorios se nombran por su categoría.
     GroupItemType.SPACE -> "Recordatorios: " + KindCopy.of(ReminderKind.fromApi(item.kind) ?: ReminderKind.OTHER).title
     GroupItemType.TRACKER -> item.title
+    GroupItemType.APPLIANCE -> "¿Está libre?: " + item.title
 }
 
 /** Un grupo: integrantes, cómo sumar gente y lo que está compartido con él. */
@@ -419,15 +423,15 @@ fun GroupScreen(groupId: String, onBack: () -> Unit, onOpenItem: (GroupItem) -> 
                     }
                     SheetTitle("Compartido con el grupo")
                     Spacer(Modifier.height(10.dp))
-                    if (group.shared.isEmpty()) {
+                    if (group.allShared.isEmpty()) {
                         Text(
-                            "Todavía nada. Abre una lista, una categoría de recordatorios o un calendario, toca Compartir " +
+                            "Todavía nada. Abre una lista, una categoría de recordatorios, un calendario o un equipo de ¿Está libre?, toca Compartir " +
                                 "y elige «${group.name}».",
                             color = Palette.InkSoft,
                             fontSize = 14.sp,
                         )
                     }
-                    group.shared.forEach { item ->
+                    group.allShared.forEach { item ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -440,7 +444,11 @@ fun GroupScreen(groupId: String, onBack: () -> Unit, onOpenItem: (GroupItem) -> 
                             Column(Modifier.weight(1f)) {
                                 Text(itemTitle(item), color = Palette.Ink, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    "De ${item.ownerName} · " + if (item.role == MemberRole.EDITOR) "pueden editar" else "solo ver",
+                                    "De ${item.ownerName} · " + when {
+                                        item.role != MemberRole.EDITOR -> "solo ver"
+                                        item.type == GroupItemType.APPLIANCE -> "pueden usarlo"
+                                        else -> "pueden editar"
+                                    },
                                     color = Palette.InkSoft,
                                     fontSize = 13.sp,
                                 )

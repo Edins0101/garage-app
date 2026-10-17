@@ -173,13 +173,39 @@ también quienes entren después. Solo quien lo creó agrega o quita gente; un i
 | POST | `/groups/{id}/members` | `{ email }` | `GroupMember` (si ya tiene cuenta entra de inmediato; si no, al registrarse) |
 | DELETE | `/groups/{id}/members/{email}` | — | 204 (quien lo creó quita a cualquiera; un integrante puede salirse) |
 | POST | `/groups/{id}/invites` | — | `ShareInvite` con `groupId` (se usa con `POST /join`) |
-| PUT | `/{lists\|spaces\|trackers}/{id}/groups/{groupId}` | `{ role }` | 204: comparte con el grupo (o cambia el permiso). Solo el dueño y estando en el grupo |
-| DELETE | `/{lists\|spaces\|trackers}/{id}/groups/{groupId}` | — | 204: deja de compartir |
+| PUT | `/{lists\|spaces\|trackers\|appliances}/{id}/groups/{groupId}` | `{ role }` | 204: comparte con el grupo (o cambia el permiso). Solo el dueño y estando en el grupo |
+| DELETE | `/{lists\|spaces\|trackers\|appliances}/{id}/groups/{groupId}` | — | 204: deja de compartir |
 
-- `Group`: `id, name, ownerId, ownerName, role ('owner'|'member'), members: GroupMember[], shared: GroupItem[], createdAt`.
+- `Group`: `id, name, ownerId, ownerName, role ('owner'|'member'), members: GroupMember[], shared: GroupItem[], sharedAppliances: GroupItem[], createdAt`.
+  Los equipos de "¿Está libre?" van en `sharedAppliances` (tipo `appliance`): la app v0.8 no conoce ese tipo y fallaría si llegara en `shared`.
 - `GroupMember`: `email, name, userId, status ('pending'|'accepted'), invitedAt`.
-- `GroupItem`: `type ('list'|'space'|'tracker'), id, title, kind, ownerId, ownerName, role` (`kind`: tipo de lista, categoría o ícono del contador).
+- `GroupItem`: `type ('list'|'space'|'tracker'|'appliance'), id, title, kind, ownerId, ownerName, role` (`kind`: tipo de lista, categoría o ícono del contador).
 - Las notificaciones push de una lista, sección o contador también llegan a los integrantes de sus grupos.
+
+## ¿Está libre? (equipos compartidos)
+
+La lavadora, la secadora, el baño, el carro… Cada equipo está libre u ocupado por alguien. Solo se comparten con
+grupos: `editor` = "Puede usarlo" (ocupar y liberar), `viewer` = solo ve el estado. Solo el dueño edita, borra o comparte.
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| GET | `/appliances` | — | `Appliance[]` (míos primero y los de mis grupos) |
+| POST | `/appliances` | `{ name, icon?, defaultMinutes? }` | `Appliance` (201) |
+| GET | `/appliances/{id}` | — | `Appliance` |
+| PATCH | `/appliances/{id}` | `{ name?, icon?, defaultMinutes? }` (`null` quita la duración) | `Appliance` |
+| DELETE | `/appliances/{id}` | — | 204 |
+| POST | `/appliances/{id}/start` | `{ minutes? }` (sin minutos usa `defaultMinutes`) | `Appliance`; 409 `"Beto lo está usando"` si lo tiene otra persona. Si ya es mío, cambia la hora estimada |
+| POST | `/appliances/{id}/finish` | — | `Appliance` libre (cualquiera con permiso de uso, por si alguien se olvidó) |
+| PUT | `/appliances/{id}/notify` | `{ mode: 'all' \| 'free' \| 'none' }` | `Appliance` (mis avisos de ese equipo) |
+| GET | `/appliances/{id}/history` | — | `ApplianceUse[]` (últimos 30, el más reciente primero) |
+
+- `Appliance`: `id, name, icon ('washer'|'dryer'|'bath'|'car'|'kitchen'|'tv'|'computer'|'other'), defaultMinutes, ownerId, ownerName,
+  role, busy, busyById, busyByName, busySince, expectedEnd, notify, groups: GroupShare[]`.
+- `ApplianceUse`: `id, userName, startedAt, endedAt, endedByName, auto` (`auto`: se liberó solo).
+- Avisos (push, `data: { type: 'appliance', applianceId }`): al ocuparlo ("Beto empezó a usar Lavadora · libre aprox. a las 3:55 p. m.")
+  y al liberarlo, a todos menos quien lo hizo; con `notify = 'free'` solo al liberarse y con `'none'` ninguno.
+- Se libera solo si nadie lo hace: 30 min después de `expectedEnd`, o 12 h después de `busySince` si no tiene hora. Se revisa al consultar.
+- En la app, quien lo ocupa con tiempo recibe un aviso local al terminar ("¿Ya terminaste con Lavadora?", WorkManager).
 
 ## Recordatorios (Pagos, Mi hogar, Mi carro)
 

@@ -36,7 +36,10 @@ class FakeGroupsRepository(private val store: FakeStore) : GroupsRepository {
                 item(GroupItemType.SPACE, it.id, kindTitles.getValue(it.kind.apiName), it.kind.apiName, it.groups)
             } +
             counters.mapNotNull { item(GroupItemType.TRACKER, it.id, it.name, it.icon.name.lowercase(), it.groups) }
-        return group.copy(shared = shared)
+        val sharedAppliances = appliances.mapNotNull {
+            item(GroupItemType.APPLIANCE, it.id, it.name, it.icon.name.lowercase(), it.groups)
+        }
+        return group.copy(shared = shared, sharedAppliances = sharedAppliances)
     }
 
     override fun observeGroups(): Flow<List<Group>> = store.db
@@ -82,6 +85,7 @@ class FakeGroupsRepository(private val store: FakeStore) : GroupsRepository {
                 lists = db.lists.map { it.copy(groups = it.groups.without()) },
                 spaces = db.spaces.map { it.copy(groups = it.groups.without()) },
                 counters = db.counters.map { it.copy(groups = it.groups.without()) },
+                appliances = db.appliances.map { it.copy(groups = it.groups.without()) },
                 invites = db.invites.filterNot { it.groupId == group.id },
             ) to Unit
         }
@@ -132,6 +136,8 @@ class FakeGroupsRepository(private val store: FakeStore) : GroupsRepository {
                     db.copy(spaces = db.spaces.map { if (it.id == target.id) it.copy(groups = it.groups.changed()) else it })
                 is ShareTarget.CounterTarget ->
                     db.copy(counters = db.counters.map { if (it.id == target.id) it.copy(groups = it.groups.changed()) else it })
+                is ShareTarget.ApplianceTarget ->
+                    db.copy(appliances = db.appliances.map { if (it.id == target.id) it.copy(groups = it.groups.changed()) else it })
             } to Unit
         }
     }

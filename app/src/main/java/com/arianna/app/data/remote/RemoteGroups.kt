@@ -4,6 +4,7 @@ import com.arianna.app.domain.model.Group
 import com.arianna.app.domain.model.GroupMember
 import com.arianna.app.domain.model.MemberRole
 import com.arianna.app.domain.model.ShareInvite
+import com.arianna.app.domain.repository.AppliancesRepository
 import com.arianna.app.domain.repository.CountersRepository
 import com.arianna.app.domain.repository.GroupsRepository
 import com.arianna.app.domain.repository.ListsRepository
@@ -25,6 +26,7 @@ class RemoteGroupsRepository(
     private val lists: ListsRepository,
     private val counters: CountersRepository,
     private val reminders: RemindersRepository,
+    private val appliances: AppliancesRepository,
 ) : GroupsRepository {
     private val groups = MutableStateFlow<List<Group>>(emptyList())
 
@@ -40,6 +42,7 @@ class RemoteGroupsRepository(
         lists.refresh()
         counters.refresh()
         reminders.refresh()
+        appliances.refresh()
     }
 
     override suspend fun create(name: String): Group {
@@ -79,6 +82,7 @@ class RemoteGroupsRepository(
             is ShareTarget.ListTarget -> "/lists"
             is ShareTarget.SpaceTarget -> "/spaces"
             is ShareTarget.CounterTarget -> "/trackers"
+            is ShareTarget.ApplianceTarget -> "/appliances"
         }
         val path = "$base/${enc(target.id)}/groups/${enc(group.id)}"
         if (role == null) {
@@ -90,6 +94,7 @@ class RemoteGroupsRepository(
             is ShareTarget.ListTarget -> lists.refresh()
             is ShareTarget.SpaceTarget -> reminders.refresh()
             is ShareTarget.CounterTarget -> counters.refresh()
+            is ShareTarget.ApplianceTarget -> appliances.refresh()
         }
         refresh()
     }

@@ -47,6 +47,11 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.TaskAlt
+import com.arianna.app.util.ApplianceStatus
+import com.arianna.app.ui.appliances.rememberNow
+import com.arianna.app.ui.appliances.applianceIcon
+import com.arianna.app.domain.model.Appliance
+import androidx.compose.material.icons.outlined.LocalLaundryService
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -125,6 +130,8 @@ fun HomeScreen(
     onOpenGroups: () -> Unit,
     /** Código de invitación de cualquier tipo. */
     onJoinCode: (String) -> Unit,
+    /** "¿Está libre?". */
+    onOpenAppliances: () -> Unit,
 ) {
     var joining by rememberSaveable { mutableStateOf(false) }
     if (joining) {
@@ -142,7 +149,7 @@ fun HomeScreen(
             onDismiss = { joining = false },
         )
     }
-    val viewModel = appViewModel { HomeViewModel(it.auth, it.counters, it.lists, it.reminders, it.homePrefs) }
+    val viewModel = appViewModel { HomeViewModel(it.auth, it.counters, it.lists, it.reminders, it.homePrefs, it.appliances) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(viewModel, snackbar)
@@ -154,6 +161,7 @@ fun HomeScreen(
     val container = (LocalContext.current.applicationContext as AriannaApp).container
     val appearanceStore = container.appearance
     val appLock = container.appLock
+    val myId = container.auth.session.value?.user?.id
     val scope = rememberCoroutineScope()
     val showMessage: (String) -> Unit = { message -> scope.launch { snackbar.showSnackbar(message) } }
     // Se ofrece una sola vez, después de elegir qué ver primero.
@@ -255,6 +263,7 @@ fun HomeScreen(
                         onOpenLists = onOpenLists,
                         onOpenGroups = onOpenGroups,
                         onJoin = { joining = true },
+                        onOpenAppliances = onOpenAppliances,
                     )
                     Spacer(Modifier.height(28.dp))
                 }
@@ -302,6 +311,11 @@ fun HomeScreen(
                                 onSeeAll = { onOpenLists(ListsRoute(filter = "todo")) },
                                 onCreate = { onOpenLists(ListsRoute(filter = "todo", create = true)) },
                             )
+                            HomeSection.APPLIANCES -> AppliancesSection(
+                                appliances = state.appliances,
+                                myId = myId,
+                                onOpen = onOpenAppliances,
+                            )
                         }
                     }
                     }
@@ -321,6 +335,7 @@ private fun ColumnScope.SectionSkeleton(section: HomeSection) {
             HomeSection.REMINDERS -> "Recordatorios"
             HomeSection.SHOPPING -> "Compras"
             HomeSection.TASKS -> "Tareas"
+            HomeSection.APPLIANCES -> "¿Está libre?"
         },
     )
     Spacer(Modifier.height(14.dp))
@@ -387,6 +402,7 @@ private fun MainMenu(
     onOpenLists: (ListsRoute) -> Unit,
     onOpenGroups: () -> Unit,
     onJoin: () -> Unit,
+    onOpenAppliances: () -> Unit,
 ) {
     // Los accesos principales siguen el orden del usuario; las secciones ocultas no aparecen.
     val main = prefs.visible.map { section ->
@@ -395,6 +411,7 @@ private fun MainMenu(
             HomeSection.REMINDERS -> MenuEntry(Icons.Outlined.NotificationsActive, "Recordatorios") { onOpenReminders(null) }
             HomeSection.SHOPPING -> MenuEntry(Icons.Outlined.ShoppingCart, "Compras") { onOpenLists(ListsRoute(filter = "shopping")) }
             HomeSection.TASKS -> MenuEntry(Icons.Outlined.TaskAlt, "Tareas") { onOpenLists(ListsRoute(filter = "todo")) }
+            HomeSection.APPLIANCES -> MenuEntry(Icons.Outlined.LocalLaundryService, "¿Libre?", onOpenAppliances)
         }
     }
     // "Unirme" sirve para cualquier código: lista, recordatorios, calendario o grupo.
@@ -549,6 +566,52 @@ private fun GarageAgenda(
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Palette.OnDark)
         }
     }
+}
+
+/** Estado de los equipos compartidos (máximo [HOME_PREVIEW]); toca para ir a "¿Está libre?". */
+@Composable
+private fun ColumnScope.AppliancesSection(appliances: List<Appliance>, myId: String?, onOpen: () -> Unit) {
+    SheetTitle("¿Está libre?") {
+        val inUse = appliances.count { it.busy }
+        if (inUse > 0) Text("$inUse en uso", color = Palette.Violet, fontWeight = FontWeight.SemiBold)
+    }
+    Spacer(Modifier.height(12.dp))
+    if (appliances.isEmpty()) {
+        Text("Agrega la lavadora, la secadora o el baño y comparte con tu grupo quién los está usando.", color = Palette.InkSoft)
+        Spacer(Modifier.height(10.dp))
+        PillButton("Agregar equipo", onClick = onOpen, light = true, icon = Icons.Outlined.AddCircleOutline, modifier = Modifier.fillMaxWidth())
+        return
+    }
+    val now = rememberNow()
+    // Primero lo que está en uso: es lo que interesa ver.
+    appliances.sortedByDescending { it.busy }.take(HOME_PREVIEW).forEach { appliance ->
+        val tone = if (appliance.busy) Palette.Danger else Palette.Success
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(onClick = onOpen)
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(applianceIcon(appliance.icon), null, tint = tone, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(appliance.name, color = Palette.Ink, fontWeight = FontWeight.SemiBold)
+                Text(ApplianceStatus.line(appliance, myId, now), color = Palette.InkSoft, fontSize = 13.sp)
+            }
+            Text(
+                if (appliance.busy) "EN USO" else "LIBRE",
+                style = MaterialTheme.typography.labelMedium,
+                color = Palette.OnDark,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(tone)
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+    }
+    SeeAll(appliances.size, "VER LOS", onOpen)
 }
 
 /** Los próximos recordatorios (de cualquier categoría); toca para ir a Recordatorios. */
